@@ -15,13 +15,13 @@
 
 > **免责声明**：本仓库为策略与控制面参考代码，不构成投资建议。实盘需自行承担风险，妥善保管 API 密钥与私钥。详见 [SECURITY.md](SECURITY.md)。
 
-## 界面预览（示例数据）
+## 界面预览（实盘截图）
 
-| 单所网格看板 | 三所总看板 |
+| Extended 网格看板 | 三所总看板 |
 |:--:|:--:|
-| ![单所网格示例](docs/assets/screenshot-grid-demo.png) | ![总看板示例](docs/assets/screenshot-overview-demo.png) |
+| ![Extended 网格](docs/assets/screenshot-extended-grid.png) | ![网格总览](docs/assets/screenshot-overview.png) |
 
-*截图为 UI 示意，数字为演示数据，非实盘账户。*
+*来自作者 VPS 实盘运行界面（SSH 隧道本地截取，地址栏为 `127.0.0.1`，无公网 IP）。*
 
 ## 文档
 

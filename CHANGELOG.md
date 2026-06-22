@@ -11,7 +11,7 @@
 - 文档：`SETUP`、`STRATEGY`、`PITFALLS`、`OPEN_SOURCE`、`API`
 - Mac/Linux 脚本：`scripts/install-all.sh`、`scripts/start-*.sh`
 - 部署巡检：`deploy/grid-monitor.js`、`deploy/ensure-grid-health.js`
-- 架构概览图与示例界面截图（演示数据，非实盘）
+- 架构概览图与**实盘看板截图**（本地隧道截取，无公网 IP）
 
 ### Notes
 
