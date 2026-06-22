@@ -1,0 +1,19 @@
+{
+  "name": "risex-grid",
+  "version": "1.0.0",
+  "description": "Arithmetic grid bot for RISEx (rise.trade) — same fleet/dashboard as extended-grid",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/grid.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "risex-client": "^0.1.10"
+  },
+  "optionalDependencies": {
+    "undici": "^6.19.8"
+  }
+}

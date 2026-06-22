@@ -1,0 +1,16 @@
+proxy/
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.local
+hedge-token.txt
+grid-token.txt
+data/
+logs/
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+overview-ledger.json

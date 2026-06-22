@@ -1,0 +1,87 @@
+/** Fleet health for RISEx snapshot (mirrors server/src/grid/fleetHealth.ts) */
+import { isFleetPaused } from './fleet-control.js';
+import { getFleetLockMeta, isFleetRestarting, ACTIVE_SLOTS } from './fleet-plan.js';
+import { isFleetRecovering, getMaintainDiagnostics } from './fleet-idle-recover.js';
+
+function gridCountDefault() {
+  return Number(process.env.RISE_GRID_COUNT) > 0
+    ? Math.floor(Number(process.env.RISE_GRID_COUNT))
+    : 18;
+}
+
+function expectedOpenOrders(state) {
+  const gcDefault = gridCountDefault();
+  if (!state?.bots?.length) return ACTIVE_SLOTS * Math.max(6, Math.floor(gcDefault * 0.85));
+  let total = 0;
+  for (const b of state.bots) {
+    if (!b.running) continue;
+    const gc = b.config?.gridCount ?? b.grid?.count ?? gcDefault;
+    total += Math.max(6, Math.floor(gc * 0.85));
+  }
+  return total > 0 ? total : ACTIVE_SLOTS * Math.max(6, Math.floor(gcDefault * 0.85));
+}
+
+export function computeFleetHealth(state) {
+  const lock = getFleetLockMeta();
+  const diag = getMaintainDiagnostics();
+  const paused = isFleetPaused();
+  const openOrders = state?.openOrders ?? 0;
+  const expected = expectedOpenOrders(state);
+  const ratio = expected > 0 ? Math.min(1, openOrders / expected) : 0;
+  const botCount = state?.botCount ?? 0;
+  const running = !!state?.running;
+  const recovering = isFleetRecovering();
+
+  let phase = 'idle';
+  if (paused) phase = 'paused';
+  else if (lock.restarting) phase = 'busy';
+  else if (recovering) phase = 'recovering';
+  else if (running && ratio < 0.85) phase = 'seeding';
+  else if (running) phase = 'maintaining';
+
+  let recommendAction = 'wait';
+  if (paused) recommendAction = 'resume';
+  else if (lock.restarting || recovering) recommendAction = 'wait';
+  else if (!running || botCount < ACTIVE_SLOTS) recommendAction = 'seed';
+  else if (ratio < 0.5) recommendAction = 'seed';
+  else if (ratio < 0.85) recommendAction = 'converge';
+  else if (openOrders === 0 && botCount > 0) recommendAction = 'restart';
+
+  const healthy =
+    !paused &&
+    !lock.restarting &&
+    !recovering &&
+    running &&
+    botCount >= ACTIVE_SLOTS &&
+    ratio >= 0.85 &&
+    openOrders > 0;
+
+  return {
+    healthy,
+    phase,
+    openOrdersRatio: Math.round(ratio * 1000) / 1000,
+    expectedOrders: expected,
+    lastError: diag.lastError,
+    maintainErrorsLastHour: diag.errorsLastHour,
+    recommendAction,
+    restarting: lock.restarting,
+    restartingSince: lock.restartingSince || null,
+    recovering,
+  };
+}
+
+export function attachFleetHealth(state) {
+  if (!state) return state;
+  const health = computeFleetHealth(state);
+  return {
+    ...state,
+    fleetHealth: health,
+    fleetMeta: {
+      ...(state.fleetMeta || {}),
+      fleetHealth: health,
+      restarting: health.restarting,
+      restartingSince: health.restartingSince,
+      recovering: health.recovering,
+    },
+  };
+}

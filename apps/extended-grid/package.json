@@ -1,0 +1,16 @@
+{
+  "name": "extended-grid",
+  "version": "1.0.0",
+  "description": "Standalone arithmetic grid bot for Extended (extended.exchange) with web dashboard and trend-based params. Separate from hedge system.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/grid.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "undici": "^6.19.8"
+  }
+}

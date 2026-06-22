@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Extended 网格</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--border:#283040;--txt:#e6edf3;--mut:#8b949e;
+        --grn:#2ea043;--red:#f85149;--blu:#388bfd;--yel:#d29922;--accent:#7c5cff}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,Segoe UI,Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+  header h1{font-size:15px;margin:0;font-weight:600}
+  .badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+  .badge.live{background:#f8514922;color:#ff7b72;border:1px solid #f85149}
+  .badge.src-real{background:#2ea04322;color:#3fb950;border:1px solid #2ea043}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;background:var(--red)}
+  .dot.on{background:var(--grn)}
+  .shell{display:flex;flex-direction:column;height:calc(100% - 41px)}
+  #authBar.warn{margin:6px 14px 0;flex-shrink:0}
+  .wrap{display:grid;grid-template-columns:260px 1fr;gap:10px;padding:10px 14px;flex:1;min-height:0}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:0;display:flex;flex-direction:column}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);margin:0 0 8px;flex-shrink:0}
+  label{display:block;font-size:11px;color:var(--mut);margin:6px 0 3px}
+  input,select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--txt);border-radius:5px;padding:6px 7px;font-size:12px}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .modes{display:flex;gap:6px}
+  .mode-btn{flex:1;text-align:center;padding:7px 2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);font-size:12px;font-weight:600}
+  .mode-btn small{display:block;font-weight:400;color:var(--mut);font-size:10px}
+  .mode-btn.sel{border-color:var(--accent);background:#7c5cff22}
+  button.act{width:100%;padding:8px;border:none;border-radius:6px;font-weight:600;cursor:pointer;margin-top:8px;color:#fff;font-size:12px}
+  .start{background:var(--grn)}.stop{background:var(--red)}.ghost{background:transparent;border:1px solid var(--border);color:var(--txt)}
+  .smart{background:linear-gradient(90deg,#7c5cff,#388bfd)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .left-scroll{overflow-y:auto;min-height:0}
+  .main{display:grid;grid-template-rows:auto auto 1fr;gap:10px;min-height:0}
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+  .card .big{font-size:18px;font-weight:700;margin:2px 0}
+  .muted{color:var(--mut);font-size:11px}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th,td{text-align:right;padding:4px 5px;border-bottom:1px solid var(--border)}
+  th:first-child,td:first-child{text-align:left}
+  .fleet-table th,.fleet-table td{text-align:center;padding:5px 4px}
+  .fleet-table th:first-child,.fleet-table td:first-child{text-align:left}
+  .fleet-table tr.sel{background:#7c5cff14}
+  .fleet-table tbody tr{cursor:pointer}
+  .fleet-table tbody tr:hover{background:#21262d}
+  .pill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600}
+  .pill.buy{background:#2ea04322;color:#3fb950}.pill.sell{background:#f8514922;color:#ff7b72}
+  .tag-mode{font-size:10px;padding:1px 5px;border-radius:6px;background:#388bfd22;color:#79c0ff}
+  .tag-mode.long{background:#2ea04322;color:#3fb950}.tag-mode.short{background:#f8514922;color:#ff7b72}
+  .up{color:var(--grn)}.down{color:var(--red)}
+  .warn{background:#d2992218;border:1px solid #d29922;border-radius:6px;padding:6px 8px;font-size:11px}
+  .btn-sm{padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--txt);cursor:pointer;font-size:10px;font-weight:600}
+  .btn-sm.danger{border-color:#f85149;color:#ff7b72}
+  .section-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;flex-shrink:0}
+  .section-head h2{margin:0}
+  .bottom3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;min-height:0}
+  .bottom4{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0}
+  .tbl-wrap{flex:1;min-height:0;overflow:auto}
+  .log{font-size:11px;flex:1;min-height:0;overflow:auto}
+  .log div{padding:3px 0;border-bottom:1px dashed var(--border);color:var(--mut)}
+  .empty-hint{color:var(--mut);text-align:center;padding:8px}
+  #detailStrip{font-size:11px;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;flex-shrink:0;display:none}
+  #detailStrip.show{display:block}
+  .ops-row{display:flex;gap:6px;margin-top:6px}
+  .ops-row .act{margin-top:0;flex:1}
+  .dash-kv{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+  .dash-kv div{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px}
+  .dash-kv b{display:block;font-size:14px;margin-top:2px}
+  .dash-led{display:flex;align-items:center;gap:6px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:12px;font-weight:600}
+  .dash-led.paused{border-color:var(--yel);color:var(--yel)}
+  .dash-led.running{border-color:var(--grn);color:#3fb950}
+  .dash-led.idle{border-color:var(--border);color:var(--mut)}
+  #loginGate{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px 24px;width:100%;max-width:360px;text-align:center}
+  .login-card h2{margin:0 0 8px;font-size:18px}
+  .login-card input{margin:12px 0;width:100%;padding:12px;font-size:16px}
+  .login-card .act{margin-top:8px;padding:12px;font-size:14px}
+  .login-err{color:var(--red);font-size:12px;margin:8px 0 0;min-height:18px}
+  #appRoot{display:none;flex-direction:column;height:100%}
+  #appRoot.ready{display:flex}
+  .hdr-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+  @media (max-width:768px){
+    html,body{overflow:auto;height:auto;min-height:100%}
+    #appRoot.ready{height:auto;min-height:100vh}
+    .shell{height:auto;min-height:calc(100vh - 41px)}
+    header{padding:10px 12px;flex-wrap:wrap}
+    header h1{font-size:14px}
+    .wrap{grid-template-columns:1fr;padding:8px;gap:8px}
+    .summary{grid-template-columns:1fr 1fr;gap:6px}
+    .card .big{font-size:16px}
+    .card{padding:8px}
+    .bottom3{grid-template-columns:1fr;gap:8px}
+    .bottom4{grid-template-columns:1fr;gap:8px}
+    .main{grid-template-rows:auto auto auto;min-height:auto}
+    .panel{padding:10px;margin-bottom:0}
+    .section-head{flex-wrap:wrap}
+    .fleet-table{font-size:10px}
+    .fleet-table th,.fleet-table td{padding:4px 3px}
+    .tbl-wrap{max-height:200px}
+    .log{max-height:160px}
+    .left-scroll{order:3}
+    .main{order:1}
+    .hide-mobile{display:none!important}
+  }
+  @media (max-width:480px){
+    .summary{grid-template-columns:1fr}
+    .fleet-table .col-hide-sm{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="loginGate">
+  <div class="login-card">
+    <h2>Extended 网格</h2>
+    <p class="muted">访问密码与对冲看板相同</p>
+    <input id="loginInput" type="password" placeholder="访问密码" autocomplete="current-password" />
+    <div class="login-err" id="loginErr"></div>
+    <button class="act start" id="loginBtn">登录</button>
+  </div>
+</div>
+<div id="appRoot">
+<header>
+  <h1>Extended 网格</h1>
+  <span id="mode" class="badge live">LIVE</span>
+  <span id="dataSrc" class="badge src-real">—</span>
+  <div class="hdr-actions">
+    <span class="muted"><span id="dot" class="dot"></span><span id="conn">—</span></span>
+    <button class="btn-sm hide-mobile" id="logoutBtn" type="button">退出</button>
+  </div>
+</header>
+<div class="shell">
+<div class="wrap">
+  <div class="left-scroll hide-mobile">
+    <div class="panel">
+      <h2>Bot 总控</h2>
+      <div class="dash-led idle" id="dashLed"><span class="dot"></span><span id="dashLedTxt">—</span></div>
+      <div class="dash-kv">
+        <div><span class="muted">网格槽位</span><b id="dashSlots">—</b></div>
+        <div><span class="muted">账户仓位</span><b id="dashPos">—</b></div>
+        <div><span class="muted">挂单</span><b id="dashOrders">—</b></div>
+        <div><span class="muted">本轮盈亏</span><b id="dashPnl">—</b></div>
+      </div>
+      <div class="ops-row">
+        <button class="act ghost" id="dashPauseBtn" type="button">暂停</button>
+        <button class="act start" id="dashResumeBtn" type="button" style="display:none">恢复</button>
+      </div>
+      <button class="act stop" id="dashCloseBtn" type="button">全部平仓</button>
+      <button class="act smart" id="dashRestartBtn" type="button">按余额重配三标</button>
+      <p class="muted" style="margin:8px 0 0;font-size:10px;line-height:1.45">固定 BTC/ETH/SOL · 22 格 / 5x / ±2.4% / 80% 占用 · 多头补 RO 卖 / 空头补 RO 买 ≥70%；偏离现价 &gt;0.3% 自动重挂。</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="summary">
+      <div class="card">
+        <div class="muted">权益</div>
+        <div class="big" id="sumBal">—</div>
+        <div class="muted" id="sumEquity">—</div>
+      </div>
+      <div class="card">
+        <div class="muted">成交量</div>
+        <div class="big" id="sumVol">—</div>
+        <div class="muted" id="sumTrades">—</div>
+      </div>
+      <div class="card">
+        <div class="muted">本轮盈亏（持续统计）</div>
+        <div class="big" id="sumRoundPnl">—</div>
+        <div class="muted" id="sumRoundMeta">—</div>
+      </div>
+      <div class="card">
+        <div class="muted">官网累计盈亏</div>
+        <div class="big" id="sumPnl">—</div>
+        <div class="muted" id="sumReturn">—</div>
+      </div>
+      <div class="card">
+        <div class="muted">官网已实现 / 未实现</div>
+        <div class="big" id="sumSplit" style="font-size:15px">—</div>
+        <div class="muted" id="sumGrid">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-head">
+        <h2>账户实时仓位</h2>
+        <span>
+          <span class="muted" id="fleetSummary">—</span>
+          <button class="btn-sm" id="quickFleetBtn" type="button">按余额重配三标</button>
+        </span>
+      </div>
+      <p class="muted" id="journalHint" style="margin:0 0 4px;font-size:10px;display:none">成交/日志已持久化，部署重启不会清空</p>
+      <p class="muted" style="margin:0 0 6px;font-size:10px;line-height:1.4">与 Extended 官网 positions 同步；不在当前 3 槽内的仓位/挂单标为「残留」，维护任务自动平仓并撤单（约 45 分钟内）。</p>
+      <div id="idleBanner" class="warn" style="display:none;margin-bottom:6px">
+        未运行 · 余额 <b id="idleBal">—</b> U · 点「按余额重配三标」
+      </div>
+      <div id="detailStrip"></div>
+      <div class="tbl-wrap" style="max-height:160px;overflow:auto">
+        <table class="fleet-table">
+          <thead><tr>
+            <th>标的</th><th>方向</th><th>杠杆</th><th class="col-hide-sm">价值/数量</th>
+            <th class="col-hide-sm">开仓价</th><th>标记价</th><th>未实现盈亏</th><th>状态</th>
+          </tr></thead>
+          <tbody id="fleetBody"></tbody>
+        </table>
+      </div>
+      <div id="rangeWarn" style="margin-top:4px"></div>
+    </div>
+
+    <div class="bottom4">
+      <div class="panel">
+        <div class="section-head"><h2>平仓记录</h2><span class="muted" id="closedCount">0</span></div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>时间</th><th>标的</th><th>向</th><th>量</th><th class="col-hide-sm">开/平价</th><th>已实现</th><th class="col-hide-sm">手续费</th></tr></thead>
+          <tbody id="closedPositions"></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>成交</h2><span class="muted" id="fillsCount">0</span></div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>时间</th><th>标的</th><th>向</th><th>价</th><th>量</th></tr></thead>
+          <tbody id="fills"></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>挂单</h2><span class="muted" id="openOrdersCount">0</span></div>
+      <p class="muted" style="margin:0 0 6px;font-size:10px">与 Extended 官网 open orders 同步（含全部标的）</p>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>标的</th><th>向</th><th>价</th><th>档</th></tr></thead>
+          <tbody id="openOrders"></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>日志</h2><span class="muted" id="alertsCount">0</span></div>
+        <div class="log" id="alerts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+const TOKEN_KEY = 'grid_auth_token';
+const $ = (id) => document.getElementById(id);
+let markets = [], lastState = null, viewBotId = null, es = null;
+
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+function setToken(t) { localStorage.setItem(TOKEN_KEY, t.trim()); }
+function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+function authHeaders() {
+  const t = getToken();
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+function authQuery() {
+  const t = getToken();
+  return t ? '?token=' + encodeURIComponent(t) : '';
+}
+
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+  if (r.status === 401 || r.status === 403) throw new Error('AUTH');
+  return r;
+}
+async function apiPost(url, body) {
+  const r = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || '请求失败');
+  return j;
+}
+
+async function verifyToken(t) {
+  const r = await fetch('/api/state', { headers: { Authorization: 'Bearer ' + t } });
+  return r.ok;
+}
+
+function showLogin(err) {
+  if (es) { es.close(); es = null; }
+  $('appRoot').classList.remove('ready');
+  $('loginGate').style.display = 'flex';
+  $('loginErr').textContent = err || '';
+}
+
+function showApp() {
+  $('loginGate').style.display = 'none';
+  $('appRoot').classList.add('ready');
+  connectStream();
+  loadMarkets().then(() => apiFetch('/api/state').then((r) => r.json()).then(render)).catch(() => {});
+}
+
+function connectStream() {
+  if (es) es.close();
+  es = new EventSource('/api/stream' + authQuery());
+  es.onmessage = (e) => render(JSON.parse(e.data));
+  es.onerror = () => {
+    apiFetch('/api/state').then((r) => r.json()).then(render).catch((e) => {
+      if (e.message === 'AUTH') showLogin('登录已过期，请重新输入密码');
+    });
+  };
+}
+
+async function boot() {
+  try {
+    const health = await (await fetch('/api/health')).json();
+    if (!health.auth_enabled) { showApp(); return; }
+    const t = getToken();
+    if (t && await verifyToken(t)) { showApp(); return; }
+    if (t) clearToken();
+    showLogin('');
+  } catch {
+    showLogin('无法连接服务');
+  }
+}
+
+$('loginBtn').onclick = async () => {
+  const t = $('loginInput').value.trim();
+  if (!t) return;
+  $('loginErr').textContent = '';
+  setToken(t);
+  if (await verifyToken(t)) { showApp(); return; }
+  clearToken();
+  $('loginErr').textContent = '密码无效';
+};
+$('loginInput').onkeydown = (e) => { if (e.key === 'Enter') $('loginBtn').click(); };
+$('logoutBtn').onclick = () => { clearToken(); showLogin(''); };
+
+async function loadMarkets() {
+  const j = await (await apiFetch('/api/markets')).json();
+  markets = j.markets;
+  $('mode').textContent = (j.mode || 'live').toUpperCase();
+  $('dataSrc').textContent = j.dataSource === 'real' ? '主网实时' : '连接中';
+}
+
+async function quickStartFleet() {
+  const btn = $('dashRestartBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '规划中…';
+  try {
+    const plan = await (await apiFetch('/api/fleet/plan')).json();
+    if (plan.error) throw new Error(plan.error);
+    const lines = (plan.plans || []).map((p) => `${p.name} ${(p.weight * 100).toFixed(0)}% · ~${p.perRungUsd}U/格`).join('\n');
+    if (!confirm(`按权益 ${plan.balance}U 重配三标？\n\n${lines}\n\n保证金~${plan.totalEstMarginUsd}U  缓冲~${plan.marginBufferUsd}U`)) return;
+    btn.textContent = '执行中…';
+    await apiPost('/api/fleet/restart', {});
+  } catch (e) {
+    if (e.message === 'AUTH') showLogin('登录已过期');
+    else alert(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+$('dashRestartBtn').onclick = quickStartFleet;
+$('quickFleetBtn').onclick = quickStartFleet;
+
+$('dashPauseBtn').onclick = async () => {
+  if (!confirm('暂停网格？将撤销全部挂单，持仓保留，不再自动补槽。')) return;
+  const btn = $('dashPauseBtn'); btn.disabled = true;
+  try { await apiPost('/api/fleet/pause', {}); }
+  catch (e) { if (e.message === 'AUTH') showLogin('登录已过期'); else alert(e.message); }
+  finally { btn.disabled = false; }
+};
+
+$('dashResumeBtn').onclick = async () => {
+  const btn = $('dashResumeBtn'); btn.disabled = true;
+  try { await apiPost('/api/fleet/resume', {}); }
+  catch (e) { if (e.message === 'AUTH') showLogin('登录已过期'); else alert(e.message); }
+  finally { btn.disabled = false; }
+};
+
+$('dashCloseBtn').onclick = async () => {
+  const n = (lastState?.livePositions || []).length;
+  if (!confirm(`确认全部平仓？\n\n将市价平掉 Extended 账户内 ${n || '全部'} 个持仓（含残留仓位），此操作不可撤销。`)) return;
+  const btn = $('dashCloseBtn'); btn.disabled = true; btn.textContent = '平仓中…';
+  try {
+    const j = await apiPost('/api/fleet/close-positions', {});
+    alert(`已提交 ${j.count ?? 0} 个标的平仓单`);
+  } catch (e) {
+    if (e.message === 'AUTH') showLogin('登录已过期');
+    else alert(e.message);
+  } finally { btn.disabled = false; btn.textContent = '全部平仓'; }
+};
+
+function renderDashboard(s) {
+  const paused = s.fleetMeta?.paused;
+  const n = s.botCount ?? 0;
+  const posN = (s.livePositions || []).length;
+  const slots = s.fleetMeta?.activeSlots ?? 3;
+  const led = $('dashLed');
+  led.className = 'dash-led ' + (paused ? 'paused' : (n > 0 ? 'running' : 'idle'));
+  $('dashLedTxt').textContent = paused ? '已暂停' : (n > 0 ? `运行中 · ${n}/${slots} 槽` : '未运行');
+  $('dashSlots').textContent = `${n} / ${slots}`;
+  $('dashPos').textContent = String(posN);
+  $('dashOrders').textContent = String(s.openOrders ?? 0);
+  const pnl = s.accountPnl;
+  $('dashPnl').innerHTML = pnl == null ? '—' : `<span class="${pnl >= 0 ? 'up' : 'down'}">${pnl >= 0 ? '+' : ''}${Number(pnl).toFixed(2)}</span>`;
+  $('dashPauseBtn').style.display = paused || !n ? 'none' : '';
+  $('dashPauseBtn').disabled = !n;
+  $('dashResumeBtn').style.display = paused ? '' : 'none';
+  $('dashCloseBtn').disabled = posN === 0;
+}
+
+function runningBots(s) { return (s.bots || []).filter((b) => b.running); }
+
+function pickViewBot(s) {
+  const running = runningBots(s);
+  if (!running.length) { viewBotId = null; return null; }
+  if (viewBotId != null && running.some((b) => b.config?.marketId === viewBotId))
+    return running.find((b) => b.config.marketId === viewBotId);
+  viewBotId = running[0].config.marketId;
+  return running[0];
+}
+
+function modeTag(m) {
+  const t = m === 'long' ? '做多' : m === 'short' ? '做空' : '中性';
+  return `<span class="tag-mode ${m === 'long' ? 'long' : m === 'short' ? 'short' : ''}">${t}</span>`;
+}
+function sideTagPos(side) {
+  const s = String(side).toLowerCase() === 'short' ? 'short' : 'long';
+  return `<span class="tag-mode ${s}">${s === 'long' ? '做多' : '做空'}</span>`;
+}
+function pnl(v) { if (v == null) return '—'; return `<span class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${v}</span>`; }
+function fmtTime(t) { return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+function fmtPrice(x) {
+  if (x == null) return '—';
+  const n = Number(x);
+  return n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : n >= 1 ? n.toFixed(2) : n.toPrecision(4);
+}
+
+function renderLivePositions(s) {
+  const running = runningBots(s);
+  const positions = s.livePositions || [];
+  const orphanCount = positions.filter((p) => !p.inFleet).length;
+  const orphanOrderCount = s.orphanOrderCount ?? 0;
+
+  $('idleBanner').style.display = !running.length && s.balance != null ? 'block' : 'none';
+  if (!running.length && s.balance != null) $('idleBal').textContent = Number(s.balance).toFixed(2);
+  $('fleetSummary').textContent = running.length
+    ? `${running.length} 格运行 · ${positions.length} 仓位${orphanCount ? ` · ${orphanCount} 残留仓` : ''}${orphanOrderCount ? ` · ${orphanOrderCount} 槽外单` : ''} · ${s.openOrders ?? 0} 单`
+    : (positions.length ? `${positions.length} 仓位 · 未运行网格` : '未运行');
+
+  $('detailStrip').classList.remove('show');
+  const warnParts = [];
+  if (orphanCount) warnParts.push(`${orphanCount} 个换槽残留仓位将自动市价平仓`);
+  if (orphanOrderCount) warnParts.push(`${orphanOrderCount} 笔槽外挂单将自动撤销`);
+  $('rangeWarn').innerHTML = warnParts.length
+    ? `<div class="warn">⚠️ ${warnParts.join('；')}（维护任务约 45 分钟内处理）</div>`
+    : '';
+
+  if (!positions.length) {
+    $('fleetBody').innerHTML = '<tr><td colspan="8" class="empty-hint">暂无持仓（与 Extended 官网 positions 一致）</td></tr>';
+    return;
+  }
+
+  $('fleetBody').innerHTML = positions.map((p) => {
+    const pct = p.unrealizedPct ? `<span class="muted" style="font-size:9px"> (${p.unrealizedPct >= 0 ? '+' : ''}${p.unrealizedPct.toFixed(2)}%)</span>` : '';
+    const bot = (s.bots || []).find((b) => b.running && b.config?.displayName === p.market);
+    const inv = bot?.inventory;
+    let coverTxt = '';
+    if (inv?.coverSide === 'sell' && inv.coverPct != null) coverTxt = `<br><span class="muted" style="font-size:9px">卖覆盖 ${inv.coverPct}%</span>`;
+    if (inv?.coverSide === 'buy' && inv.coverPct != null) coverTxt = `<br><span class="muted" style="font-size:9px">买覆盖 ${inv.coverPct}%</span>`;
+    const near = inv?.nearestOrderPct != null ? `<span class="muted" style="font-size:9px"> · 距价 ${inv.nearestOrderPct}%</span>` : '';
+    const status = p.inFleet ? `<span class="up">网格中</span>${coverTxt}${near}` : '<span class="down">残留</span>';
+    return `<tr>
+      <td><b>${p.market}</b></td>
+      <td>${sideTagPos(p.side)}</td>
+      <td>${p.leverage != null ? p.leverage + 'x' : '—'}</td>
+      <td class="col-hide-sm" style="font-size:10px">${fmtPrice(p.valueUsd)} / ${p.size}</td>
+      <td class="col-hide-sm">${fmtPrice(p.entryPrice)}</td>
+      <td>${fmtPrice(p.markPrice)}</td>
+      <td>${pnl(p.unrealizedPnl)}${pct}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderOpenOrders(s) {
+  const list = s.openOrdersList || [];
+  $('openOrdersCount').textContent = list.length + ' 单';
+  if (!list.length) { $('openOrders').innerHTML = '<tr><td colspan="4" class="empty-hint">无</td></tr>'; return; }
+  const viewMid = viewBotId;
+  const sorted = [...list].sort((a, b) => {
+    if (viewMid && a.marketId === viewMid && b.marketId !== viewMid) return -1;
+    if (viewMid && b.marketId === viewMid && a.marketId !== viewMid) return 1;
+    return b.price - a.price;
+  });
+  $('openOrders').innerHTML = sorted.slice(0, 40).map((o) =>
+    `<tr><td>${o.symbol}</td><td><span class="pill ${o.side}">${o.side === 'buy' ? '买' : '卖'}</span>${o.reduceOnly ? ' <span class="muted" title="reduce-only">RO</span>' : ''}</td><td>${fmtPrice(o.price)}</td><td>L${o.levelIndex ?? '—'}</td></tr>`
+  ).join('');
+}
+
+function renderFillsTable(s) {
+  const fills = s.fills || [];
+  $('fillsCount').textContent = fills.length + ' 笔';
+  if (!fills.length) { $('fills').innerHTML = '<tr><td colspan="5" class="empty-hint">无</td></tr>'; return; }
+  $('fills').innerHTML = fills.slice(0, 30).map((f) =>
+    `<tr><td>${fmtTime(f.t)}</td><td>${f.symbol}</td><td><span class="pill ${f.side}">${f.side === 'buy' ? '买' : '卖'}</span></td><td>${fmtPrice(f.price)}</td><td>${f.size}</td></tr>`
+  ).join('');
+}
+
+function renderAlerts(s) {
+  const alerts = s.alerts || [];
+  $('alertsCount').textContent = alerts.length + ' 条';
+  $('alerts').innerHTML = alerts.length
+    ? alerts.slice(0, 25).map((a) => `<div>${a.symbol ? `[${a.symbol}] ` : ''}${fmtTime(a.t)} ${a.message}</div>`).join('')
+    : '<div class="empty-hint">无</div>';
+}
+
+function renderClosedPositions(s) {
+  const list = s.recentClosed || [];
+  $('closedCount').textContent = list.length + ' 条';
+  if (!list.length) {
+    $('closedPositions').innerHTML = '<tr><td colspan="7" class="empty-hint">暂无（与 Extended 官网 positions/history 同步）</td></tr>';
+    return;
+  }
+  $('closedPositions').innerHTML = list.map((p) => `<tr>
+    <td>${fmtTime(p.closedTime)}</td>
+    <td><b>${p.market}</b></td>
+    <td>${sideTagPos(p.side)}</td>
+    <td>${p.size}</td>
+    <td class="col-hide-sm" style="font-size:10px">${fmtPrice(p.openPrice)} → ${fmtPrice(p.exitPrice)}</td>
+    <td>${pnl(p.realizedPnl)}</td>
+    <td class="col-hide-sm">${p.fees ? pnl(-Math.abs(p.fees)) : '0'}</td>
+  </tr>`).join('');
+}
+
+function renderSummary(s, n) {
+  const fmt = (v) => v == null ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const signed = (v) => v == null ? '—' : `${v >= 0 ? '+' : ''}${fmt(v)}`;
+  const cls = (v) => v == null ? '' : (v >= 0 ? 'up' : 'down');
+  $('sumBal').textContent = fmt(s.equity ?? s.balance);
+  $('sumEquity').textContent = '可用 ' + fmt(s.balance) + ' · ' + (n ?? s.botCount ?? 0) + ' 标运行';
+  $('sumVol').textContent = fmt(s.volume);
+  $('sumTrades').textContent = `成交 ${(s.stats?.buys ?? 0) + (s.stats?.sells ?? 0)} · 挂单 ${s.openOrders ?? 0}`;
+
+  if (s.accountPnl != null && s.baselineEquity != null) {
+    $('sumRoundPnl').innerHTML = `<span class="${cls(s.accountPnl)}">${signed(s.accountPnl)}</span>`;
+    const pctTxt = s.returnPct != null ? ` · ${signed(s.returnPct)}%` : '';
+    const sinceTxt = s.baselineSetAt ? ` · 自 ${fmtTime(s.baselineSetAt)}` : '';
+    $('sumRoundMeta').textContent = `基准 ${fmt(s.baselineEquity)}${pctTxt}${sinceTxt}`;
+  } else {
+    $('sumRoundPnl').innerHTML = '<span class="muted">—</span>';
+    $('sumRoundMeta').textContent = '首次启动记录基准，重配不重置';
+  }
+
+  if (s.totalPnl != null) {
+    $('sumPnl').innerHTML = `<span class="${cls(s.totalPnl)}">${signed(s.totalPnl)}</span>`;
+    const src = s.official?.pnlSource === 'portfolio'
+      ? `Extended 交易表现 · 自 ${s.pnlSinceDate || '—'}`
+      : '同步中';
+    $('sumReturn').textContent = src;
+  } else {
+    $('sumPnl').innerHTML = '<span class="muted">同步中</span>';
+    $('sumReturn').textContent = '正在拉取 Extended 平仓数据…';
+  }
+  $('sumSplit').innerHTML = `${signed(s.realizedPnl)} / ${signed(s.unrealizedPnl)}`;
+  const feeTxt = s.feesPaid != null ? `累计手续费 ${signed(-Math.abs(s.feesPaid))}` : '手续费 —';
+  $('sumGrid').textContent = feeTxt;
+}
+
+function render(s) {
+  lastState = s;
+  const n = s.botCount ?? 0;
+  const paused = s.fleetMeta?.paused;
+  $('dot').className = 'dot' + ((s.running && !paused) ? ' on' : '');
+  $('conn').textContent = paused ? '已暂停' : (s.running ? `运行中 (${n} 标)` : '未运行');
+  renderDashboard(s);
+  renderSummary(s, n);
+  if ($('journalHint') && s.journalPersisted) $('journalHint').style.display = 'block';
+  renderLivePositions(s);
+  renderOpenOrders(s);
+  renderClosedPositions(s);
+  renderFillsTable(s);
+  renderAlerts(s);
+}
+
+boot();
+</script>
+</body>
+</html>
