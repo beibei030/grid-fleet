@@ -115,6 +115,7 @@
 | 429 / 链上限速退避 | — | ✅ | 部分 | — |
 | 可选 Bearer 认证 | ✅ | ✅ | ✅ | ✅ |
 | Telegram 日报 / 告警 | — | — | — | 可选 |
+| Mac/Linux 一键脚本 | — | — | — | ✅ `scripts/` |
 
 ---
 
@@ -138,6 +139,10 @@
 | [SETUP.md](./SETUP.md) | 要跑实盘的人 | API 怎么拿、`.env` 怎么填、Decibel 逐步 |
 | [STRATEGY.md](./STRATEGY.md) | 要理解策略的人 | 参数、铺单规则、舰队维护 |
 | [PITFALLS.md](./PITFALLS.md) | 运维 / 踩坑 | 429、reduce-only、索引延迟、勿并行 restart |
+| [API.md](./API.md) | 集成 / 监控 | HTTP 接口、snapshot、fleet 控制 |
+| [CHANGELOG.md](../CHANGELOG.md) | 版本 | 发布记录 |
+| [SECURITY.md](../SECURITY.md) | 所有人 | 密钥规范 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献者 | PR 规范 |
 | **OPEN_SOURCE.md**（本文） | 开源访客 | 真实边界、对照表、不是什么 |
 
 ---

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Decibel neutral grid fleet",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "tsx src/grid/decibelGridServer.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

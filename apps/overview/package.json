@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Multi-venue grid dashboard",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "tsx src/overviewServer.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

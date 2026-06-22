@@ -9,6 +9,7 @@ hedge-token.txt
 grid-token.txt
 data/
 logs/
+scripts/*.log
 *.log
 *.pid
 .DS_Store

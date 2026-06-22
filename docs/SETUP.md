@@ -17,9 +17,21 @@
 ## 通用约定
 
 1. **每个所独立进程、独立 `.env`**，互不覆盖。
-2. **`GRID_AUTH_TOKEN`**（可选）：非空时，看板与 `/api/*` 需 `Authorization: Bearer <token>`。VPS 暴露公网时建议开启。
+2. **`GRID_AUTH_TOKEN`**（可选）：非空时，看板与 `/api/*` 需 `Authorization: Bearer <token>`。公网暴露时建议开启。
 3. **`MODE=mainnet`**：Decibel 实盘；Extended / RISEx 默认即主网。
 4. **总看板**通过 `*_GRID_FLEET_URL` 指向各所本机 HTTP 地址（与各所 `PORT` 一致）。
+5. **Node.js ≥ 20**（Decibel / Overview 需要）。
+6. Overview 的 `config.ts` 中若出现 Ondo / Hyperliquid / 8787 等字段，为历史配置残留；**本开源版总看板仅聚合 Extended + RISEx + Decibel**，无需配置 Ondo 相关 env。
+
+### Mac / Linux 一键脚本
+
+```bash
+chmod +x scripts/*.sh
+./scripts/install-all.sh          # npm install 四个 app
+# 填好各 apps/*/.env 后：
+./scripts/start-all.sh            # 后台四进程，日志 logs/*.log
+# 或单独：scripts/start-extended.sh 等
+```
 
 ---
 
