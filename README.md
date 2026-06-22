@@ -15,6 +15,7 @@
 
 | 文档 | 内容 |
 |------|------|
+| **[docs/OPEN_SOURCE.md](docs/OPEN_SOURCE.md)** | **开源总览（表格）**：是什么/不是什么、参数对照、能力清单 |
 | **[docs/SETUP.md](docs/SETUP.md)** | **API 密钥怎么填**（含 Decibel 逐步说明）、启动顺序 |
 | [docs/STRATEGY.md](docs/STRATEGY.md) | 中性网格策略参数与维护逻辑 |
 | [docs/PITFALLS.md](docs/PITFALLS.md) | 实盘踩坑与运维禁忌 |
