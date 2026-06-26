@@ -17,15 +17,15 @@
 
 ## 界面预览（实盘截图）
 
-| Extended 网格看板 | 三所总看板 |
+| v2 运行预览 | 三所总看板 |
 |:--:|:--:|
-| ![Extended 网格](docs/assets/screenshot-extended-grid.png) | ![网格总览](docs/assets/screenshot-overview.png) |
+| ![v2 运行预览](docs/assets/screenshot-extended-grid.png) | ![网格总览](docs/assets/screenshot-overview.png) |
 
 **各交易所详情（总看板底部）**
 
 ![各交易所详情](docs/assets/screenshot-venues-detail.png)
 
-*来自作者 VPS 实盘运行界面（SSH 隧道本地截取，地址栏为 `127.0.0.1`，无公网 IP）。*
+*来自作者 VPS 实盘运行界面（本机 `127.0.0.1` 截取并脱敏；无公网 IP、token、账户地址、出入金金额或账户明细）。*
 
 ## 文档
 
