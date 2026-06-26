@@ -102,7 +102,7 @@ export async function maintainFleet(fleet, exchange) {
 
   for (const b of fleet.bots.values()) {
     if (!b.running) continue;
-    if (b.outOfRange && b.outOfRangeSince
+    if (b.config?.autoRecenter && b.outOfRange && b.outOfRangeSince
       && now - b.outOfRangeSince > 3 * 3600_000
       && (!b.lastRecenterAt || now - b.lastRecenterAt > 3600_000)
       && !inSeedGrace(b) && !botUnderfilled(b)) {
@@ -151,7 +151,14 @@ export async function maintainFleet(fleet, exchange) {
       if (b.isSeeding?.() || inSeedGrace(b) || botUnderfilled(b)) continue;
       const h = b.checkGridHealth?.();
       if (!h) continue;
-      if (h.detached && (h.detachedMs >= 3 * 60 * 1000 || (h.detachedUp && h.maxBuy != null && b.lastPrice - h.maxBuy > h.spacing * 4))) {
+      if (h.overFilled || h.hardOverFilled) {
+        const cached = exchange.getCachedOpenOrders?.(b.config.marketId) || [];
+        const r = await b.trimExcessOrders?.(cached, {
+          target: h.softMaxOrders,
+          maxCancel: Number(process.env.RISE_CONVERGE_MAX_CANCEL || 8),
+        }).catch((e) => ({ error: e.message }));
+        gridHealth.push({ market: b.config.displayName, fix: 'trim_excess', ...r });
+      } else if (b.config?.autoRecenter && h.detached && (h.detachedMs >= 3 * 60 * 1000 || (h.detachedUp && h.maxBuy != null && b.lastPrice - h.maxBuy > h.spacing * 4))) {
         const ok = await b.recenter(b.lastPrice, { force: true }).catch(() => false);
         if (ok) gridHealth.push({ market: b.config.displayName, fix: 'recenter' });
       } else if (!h.buysBelow || !h.sellsAbove) {

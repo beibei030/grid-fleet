@@ -4,1214 +4,614 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0d1117" />
-  <title>网格总览</title>
+  <title>三所网格总看板 · 8088</title>
   <style>
     :root {
       --bg: #0d1117;
       --panel: #161b22;
+      --panel2: #1f2630;
       --border: #30363d;
       --txt: #e6edf3;
       --mut: #8b949e;
-      --grn: #3fb950;
+      --green: #3fb950;
       --red: #f85149;
-      --blu: #58a6ff;
-      --yel: #d29922;
-      --ext: #58a6ff;
-      --risex: #bc8cff;
-      --dec: #3fb950;
-      --ondo: #ffa657;
+      --yellow: #d29922;
+      --blue: #58a6ff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
     body {
-      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
       background: var(--bg);
       color: var(--txt);
-      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.45;
     }
-
-    /* ── 顶栏 ── */
-    .hdr {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 20px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
+    header {
       position: sticky;
       top: 0;
       z-index: 10;
+      background: rgba(13, 17, 23, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-    .hdr h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mut); flex-shrink: 0; }
-    .dot.on { background: var(--grn); box-shadow: 0 0 6px var(--grn); }
+    h1 { font-size: 18px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mut); display: inline-block; }
+    .dot.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
     .dot.off { background: var(--red); }
-    .hdr-meta { font-size: 12px; color: var(--mut); margin-left: 4px; }
-    .hdr-links { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
-    .hdr-links a {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+    .meta { color: var(--mut); font-size: 12px; }
+    nav { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    nav a {
       color: var(--txt);
       text-decoration: none;
-      background: var(--bg);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
     }
-    .hdr-links a:hover { border-color: var(--blu); color: var(--blu); }
-    .hdr-links a.ext { border-color: #388bfd44; }
-    .hdr-links a.risex { border-color: #bc8cff44; }
-    .hdr-links a.dec { border-color: #3fb95044; }
-    .hdr-links a.ondo { border-color: #ffa65744; }
-
-    /* ── 主体 ── */
-    .page { max-width: 1280px; margin: 0 auto; padding: 16px 20px 24px; }
-
-    .alert {
-      background: #f8514918;
-      border: 1px solid var(--red);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #ffa198;
-      margin-bottom: 14px;
-    }
-
-    /* ── KPI 条 ── */
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .kpi-row.sub {
-      margin-bottom: 16px;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-    .kpi-row.sub .kpi .val { font-size: 20px; }
-    .kpi {
+    main { max-width: 1280px; margin: 0 auto; padding: 18px; }
+    .login {
+      max-width: 360px;
+      margin: 12vh auto;
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-      min-height: 88px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      border-radius: 14px;
+      padding: 22px;
     }
-    .kpi label {
-      display: block;
-      font-size: 12px;
-      color: var(--mut);
-      letter-spacing: 0.02em;
-      margin-bottom: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .login h2 { font-size: 18px; margin-bottom: 8px; }
+    .login p { color: var(--mut); font-size: 13px; margin-bottom: 14px; }
+    .login input, .login button {
+      width: 100%;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
     }
-    .kpi .val {
-      font-size: 22px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.25;
-      word-break: break-all;
+    .login input {
+      background: var(--bg);
+      color: var(--txt);
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
     }
-    .kpi.hero {
-      background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-      border-color: #388bfd44;
-    }
-    .kpi.hero .val { font-size: 28px; color: var(--blu); }
-    .kpi .val.up { color: var(--grn); }
-    .kpi .val.down { color: var(--red); }
-    .kpi .sub {
-      font-size: 11px;
-      color: var(--mut);
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-    .kpi.health-ok { border-color: #3fb95044; }
-    .kpi.health-busy { border-color: #d2992244; }
-    .kpi.health-bad { border-color: #f8514944; }
-
+    .login button { border: 0; background: var(--green); color: #fff; font-weight: 700; cursor: pointer; }
     .section-title {
+      margin: 20px 0 10px;
       font-size: 13px;
-      font-weight: 600;
       color: var(--mut);
-      margin: 0 0 8px 2px;
-      letter-spacing: 0.02em;
-    }
-
-    /* ── 四所面板 ── */
-    .venues {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .venue {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .venue-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      border-left: 3px solid var(--vc, var(--blu));
-    }
-    .venue.ext { --vc: var(--ext); }
-    .venue.risex { --vc: var(--risex); }
-    .venue.dec { --vc: var(--dec); }
-    .venue.ondo { --vc: var(--ondo); }
-    .venue-name { font-size: 15px; font-weight: 700; flex: 1; }
-    .venue-name small { font-size: 12px; color: var(--mut); font-weight: 500; margin-left: 6px; }
-    .badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 20px;
-    }
-    .badge.run { background: #3fb95022; color: var(--grn); border: 1px solid #3fb95055; }
-    .badge.stop { background: #8b949e18; color: var(--mut); border: 1px solid var(--border); }
-    .badge.err { background: #f8514922; color: var(--red); border: 1px solid #f8514955; }
-    .badge.stale { background: #d2992222; color: var(--yel); border: 1px solid #d2992255; }
-    .venue-open {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--blu);
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .venue-open:hover { border-color: var(--blu); }
-
-    .venue-body { padding: 12px 14px 14px; flex: 1; }
-    .venue-metrics {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .m {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-    }
-    .m label { display: block; font-size: 11px; color: var(--mut); margin-bottom: 3px; }
-    .m span { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .up { color: var(--grn); }
-    .down { color: var(--red); }
-
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--border); }
-    th:first-child, td:first-child { text-align: left; }
-    th { color: var(--mut); font-weight: 600; font-size: 11px; }
-    .empty { color: var(--mut); font-size: 12px; padding: 8px 0; text-align: center; }
-    .err-txt { color: #ffa198; font-size: 13px; padding: 8px 0; }
-
-    /* ── 持仓 ── */
-    .pos-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 16px;
-      overflow: hidden;
-    }
-    .pos-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .pos-head h2 { font-size: 14px; font-weight: 600; flex: 1; }
-    .pos-head .meta { font-size: 12px; color: var(--mut); }
-    .pos-body { padding: 0 14px 12px; overflow-x: auto; }
-    .pos-panel table { font-size: 12px; }
-    .pos-panel th, .pos-panel td { white-space: nowrap; }
-    .side-long { color: var(--grn); font-weight: 600; }
-    .side-short { color: var(--red); font-weight: 600; }
-    .tag-venue {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-    .tag-venue.ext { color: var(--ext); border-color: #388bfd44; }
-    .tag-venue.risex { color: var(--risex); border-color: #bc8cff44; }
-    .tag-venue.dec { color: var(--dec); border-color: #3fb95044; }
-    .tag-venue.ondo { color: var(--ondo); border-color: #ffa65744; }
-    .pos-mini { margin-bottom: 10px; }
-    .pos-mini label {
-      display: block;
-      font-size: 11px;
-      color: var(--mut);
-      margin-bottom: 4px;
-    }
-
-    /* ── Ondo 趋势（历史样式，网格模式不展示） ── */
-    .trend-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
-    }
-    .trend-box h3 {
-      font-size: 11px;
-      color: var(--mut);
+      letter-spacing: .04em;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
-      margin-bottom: 8px;
     }
-    .trend-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    .trend-pill {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
-    .trend-pill.up { color: var(--grn); border-color: #3fb95055; background: #3fb95018; }
-    .trend-pill.down { color: var(--red); border-color: #f8514955; background: #f8514918; }
-    .trend-pill.neutral { color: var(--blu); border-color: #388bfd55; background: #388bfd18; }
-    .trend-pill.mode { color: var(--ondo); border-color: #ffa65755; background: #ffa65718; }
-    .trend-meta { font-size: 12px; color: var(--mut); line-height: 1.5; }
-    .trend-meta b { color: var(--txt); font-weight: 600; }
-
-    /* ── 日历记账 ── */
-    .ledger-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 16px;
-      overflow: hidden;
-    }
-    .ledger-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .ledger-head h2 { font-size: 14px; font-weight: 600; flex: 1; }
-    .ledger-head .meta { font-size: 12px; color: var(--mut); }
-    .ledger-body { padding: 12px 14px 14px; }
-    .ledger-grid {
+    .kpis {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
     }
-    @media (max-width: 900px) {
-      .ledger-grid { grid-template-columns: 1fr; }
-    }
-    .ledger-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-    }
-    .ledger-box h3 {
-      font-size: 11px;
-      color: var(--mut);
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      margin-bottom: 8px;
-    }
-    .ledger-chart { width: 100%; height: 140px; display: block; }
-    .ledger-chart .axis { stroke: var(--border); stroke-width: 1; }
-    .ledger-chart .line-pnl { fill: none; stroke: var(--grn); stroke-width: 2; }
-    .ledger-chart .line-vol { fill: none; stroke: var(--blu); stroke-width: 1.5; stroke-dasharray: 4 3; opacity: 0.85; }
-    .ledger-chart .dot-pnl { fill: var(--grn); }
-    .ledger-legend { display: flex; gap: 14px; font-size: 11px; color: var(--mut); margin-top: 6px; }
-    .ledger-legend i { display: inline-block; width: 16px; height: 2px; vertical-align: middle; margin-right: 4px; }
-    .ledger-legend .lg-pnl { background: var(--grn); }
-    .ledger-legend .lg-vol { background: var(--blu); opacity: 0.85; }
-    .changes-list { list-style: none; max-height: 160px; overflow-y: auto; }
-    .changes-list li {
-      font-size: 12px;
-      padding: 5px 0;
-      border-bottom: 1px solid var(--border);
-      color: var(--mut);
-    }
-    .changes-list li:last-child { border-bottom: none; }
-    .changes-list b { color: var(--txt); font-weight: 500; }
-    .cal-wrap { overflow-x: auto; margin-top: 12px; }
-    .cal-wrap table { font-size: 12px; min-width: 640px; }
-    .cal-wrap .today-row td { background: #388bfd12; }
-    .vol-hint { font-size: 11px; color: var(--mut); margin-top: 4px; }
-
-    /* ── 三所全自动状态条 ── */
-    .auto-strip {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-    }
-    .auto-strip.ok { border-color: #3fb95055; }
-    .auto-strip.busy { border-color: #d2992255; }
-    .auto-strip.action { border-color: #f8514955; }
-    .auto-strip-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .auto-strip-head h2 { font-size: 15px; font-weight: 700; }
-    .auto-strip-head .summary {
-      font-size: 12px;
-      color: var(--mut);
-      text-align: right;
-      max-width: 100%;
-      line-height: 1.45;
-    }
-    .auto-pills {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-    .auto-pill {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      font-size: 12px;
-      min-width: 0;
-    }
-    .auto-pill .name { font-weight: 700; font-size: 13px; }
-    .auto-pill .meta {
-      color: var(--mut);
-      font-size: 11px;
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .auto-pill.ok { border-color: #3fb95055; }
-    .auto-pill.busy { border-color: #d2992255; }
-    .auto-pill.bad { border-color: #f8514955; }
-    .auto-pill.off { border-color: #8b949e44; opacity: 0.85; }
-    .pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mut); flex-shrink: 0; }
-    .pill-dot.ok { background: var(--grn); box-shadow: 0 0 5px var(--grn); }
-    .pill-dot.busy { background: var(--yel); }
-    .pill-dot.bad { background: var(--red); }
-
-    /* ── 各所 fleetHealth ── */
-    .health-bar {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      margin-bottom: 10px;
-      font-size: 12px;
-    }
-    .health-bar.ok { border-color: #3fb95044; }
-    .health-bar.busy { border-color: #d2992244; }
-    .health-bar.bad { border-color: #f8514944; }
-    .health-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-    .health-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .htag {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-    .htag.ok { color: var(--grn); border-color: #3fb95055; background: #3fb95015; }
-    .htag.busy { color: var(--yel); border-color: #d2992255; background: #d2992215; }
-    .htag.bad { color: var(--red); border-color: #f8514955; background: #f8514915; }
-    .htag.neu { color: var(--blu); border-color: #388bfd55; background: #388bfd15; }
-    .health-progress {
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin-top: 8px;
-      overflow: hidden;
-    }
-    .health-progress i {
-      display: block;
-      height: 100%;
-      background: linear-gradient(90deg, var(--grn), var(--blu));
-      border-radius: 2px;
-      transition: width 0.4s ease;
-    }
-    .health-err { color: #ffa198; font-size: 11px; margin-top: 6px; }
-
-    /* ── 登录 ── */
-    #loginGate {
-      position: fixed; inset: 0; z-index: 99;
-      background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .login-card {
+    .card, .kpi, .alert {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 28px 24px;
-      width: 360px;
-      text-align: center;
     }
-    .login-card h2 { font-size: 18px; margin-bottom: 8px; }
-    .login-card p { font-size: 13px; color: var(--mut); margin-bottom: 16px; }
-    .login-card input {
-      width: 100%; padding: 12px; font-size: 15px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 6px; color: var(--txt); margin-bottom: 10px;
+    .kpi { padding: 16px; min-height: 104px; }
+    .kpi label, .metric label {
+      display: block;
+      color: var(--mut);
+      font-size: 12px;
+      margin-bottom: 6px;
     }
-    .login-card button {
-      width: 100%; padding: 12px; font-size: 14px; font-weight: 600;
-      background: var(--grn); color: #fff; border: none; border-radius: 6px; cursor: pointer;
+    .kpi .value {
+      font-size: 26px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
     }
-
-    /* ── 手机 ── */
-    @media (max-width: 900px) {
-      .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .kpi-row.sub { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .kpi.hero { grid-column: 1 / -1; }
-      .auto-pills { grid-template-columns: 1fr; }
-      .ledger-grid { grid-template-columns: 1fr; }
+    .sub { color: var(--mut); font-size: 12px; margin-top: 7px; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+    .warn { color: var(--yellow); }
+    .alert {
+      display: none;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border-color: #d2992255;
+      color: #f2cc60;
+      background: #2d250d;
     }
-    @media (max-width: 640px) {
-      .hdr { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
-      .hdr h1 { font-size: 15px; }
-      .hdr-links { margin-left: 0; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-      .hdr-links a { text-align: center; padding: 8px 6px; font-size: 11px; }
-      .page { padding: 12px; }
-      .kpi { padding: 12px 14px; min-height: 76px; }
-      .kpi .val { font-size: 18px; }
-      .kpi.hero .val { font-size: 24px; }
-      .kpi-row.sub .kpi .val { font-size: 17px; }
+    .venues {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .venue { overflow: hidden; }
+    .venue-head {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .venue h2 { font-size: 17px; }
+    .badge {
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.ok { background: #14351f; color: var(--green); }
+    .badge.busy { background: #332a12; color: var(--yellow); }
+    .badge.needs_action, .badge.down { background: #3a1618; color: var(--red); }
+    .venue-body { padding: 14px; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px;
+      min-width: 0;
+    }
+    .metric span {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      word-break: break-word;
+    }
+    .bots { display: grid; gap: 8px; }
+    .bot {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px;
+    }
+    .bot-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .bot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      font-size: 12px;
+      color: var(--mut);
+    }
+    .bot-grid b { color: var(--txt); font-weight: 600; }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .table th, .table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .table th { color: var(--mut); font-weight: 600; background: var(--panel2); }
+    .table .total-row td { background: var(--panel2); font-weight: 700; }
+    .table tr:last-child td { border-bottom: 0; }
+    .scroll { overflow-x: auto; }
+    @media (max-width: 980px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .venues { grid-template-columns: 1fr; }
-      .venue-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .venue-head { flex-wrap: wrap; }
-      .venue-open { width: 100%; text-align: center; margin-top: 4px; }
-      .auto-strip-head .summary { text-align: left; }
+      nav { margin-left: 0; width: 100%; }
+    }
+    @media (max-width: 720px) {
+      header { padding: 10px 12px; gap: 8px; }
+      h1 { font-size: 16px; }
+      nav a { font-size: 11px; padding: 5px 8px; }
+      main { padding: 10px; }
+      .section-title { margin: 14px 0 8px; font-size: 12px; }
+      .kpis { gap: 8px; }
+      .kpi { padding: 10px 11px; min-height: 76px; border-radius: 10px; }
+      .kpi label, .metric label { font-size: 11px; margin-bottom: 4px; }
+      .kpi .value { font-size: 19px; line-height: 1.15; }
+      .sub { font-size: 10.5px; margin-top: 5px; }
+      .venue-head { padding: 10px 11px; }
+      .venue h2 { font-size: 15px; }
+      .badge { font-size: 11px; padding: 4px 7px; }
+      .venue-body { padding: 10px; }
+      .metrics { gap: 7px; margin-bottom: 9px; }
+      .metric { padding: 8px; border-radius: 8px; }
+      .metric span { font-size: 12px; }
+      .bot { padding: 8px; }
+      .bot-title { font-size: 13px; margin-bottom: 6px; }
+      .bot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: 11px; gap: 5px; }
+      .table th, .table td { padding: 7px 8px; font-size: 11px; }
+      .alert { padding: 9px 10px; font-size: 12px; }
+    }
+    @media (max-width: 560px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpi { min-height: 70px; }
+      .kpi .value { font-size: 17px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .table th, .table td { padding: 6px 7px; font-size: 10.5px; }
+    }
+    @media (max-width: 380px) {
+      .kpis { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .kpi .value { font-size: 18px; }
     }
   </style>
 </head>
 <body>
-  <div id="loginGate" style="display:none">
-    <div class="login-card">
-      <h2>网格总览</h2>
-      <p>输入访问密码（与各所网格看板相同）</p>
-      <input id="tokenIn" type="password" placeholder="Token" autocomplete="current-password" />
-      <button id="tokenGo" type="button">进入看板</button>
-    </div>
+  <div id="loginGate" class="login" style="display:none">
+    <h2>总看板认证</h2>
+    <p>输入网格 Token 后读取 8088 聚合状态。</p>
+    <input id="tokenIn" type="password" placeholder="Token" autocomplete="current-password" />
+    <button id="tokenGo" type="button">进入看板</button>
   </div>
 
-  <header class="hdr">
-    <span id="dot" class="dot"></span>
-    <h1>网格总览</h1>
-    <span class="hdr-meta" id="time">加载中…</span>
-    <nav class="hdr-links" id="nav"></nav>
-  </header>
+  <div id="app" style="display:none">
+    <header>
+      <span id="dot" class="dot"></span>
+      <h1>三所网格总看板</h1>
+      <span id="time" class="meta">等待数据</span>
+      <nav id="nav"></nav>
+    </header>
 
-  <main class="page">
-    <div id="alert" class="alert" style="display:none"></div>
+    <main>
+      <div id="alert" class="alert"></div>
 
-    <section class="auto-strip ok" id="autoStrip">
-      <div class="auto-strip-head">
-        <h2>三所网格 · 全自动</h2>
-        <span class="summary" id="autoSummary">—</span>
-      </div>
-      <div class="auto-pills" id="autoPills"></div>
-    </section>
-
-    <p class="section-title">盈亏与权益</p>
-    <section class="kpi-row">
-      <div class="kpi hero">
-        <label>今日已实现盈亏</label>
-        <div class="val" id="kTodayPnl">—</div>
-        <div class="sub" id="kLedgerDay">北京时间日切 · 只增不减</div>
-      </div>
-      <div class="kpi">
-        <label>总已实现盈亏</label>
-        <div class="val" id="kTotalPnl">—</div>
-        <div class="sub" id="kTotalPnlSub">四所交易所口径合计</div>
-      </div>
-      <div class="kpi">
-        <label>未实现盈亏</label>
-        <div class="val" id="kUr">—</div>
-      </div>
-      <div class="kpi">
-        <label>总权益</label>
-        <div class="val" id="kEq">—</div>
-        <div class="sub" id="kStatus">—</div>
-      </div>
-    </section>
-
-    <p class="section-title">运行状态</p>
-    <section class="kpi-row sub">
-      <div class="kpi" id="kHealthBox">
-        <label>三所网格健康</label>
-        <div class="val" id="kHealth">—</div>
-        <div class="sub" id="kHealthSub">三所网格 · Watchdog 每 5 分钟</div>
-      </div>
-      <div class="kpi">
-        <label>挂单数量</label>
-        <div class="val" id="kOrders">—</div>
-        <div class="sub" id="kOrdersSub">四所合计</div>
-      </div>
-      <div class="kpi">
-        <label>持仓笔数</label>
-        <div class="val" id="kPos">—</div>
-        <div class="sub" id="kPosVal">—</div>
-      </div>
-      <div class="kpi">
-        <label>今日成交量</label>
-        <div class="val" id="kTodayVol">—</div>
-        <div class="sub" id="kVolSub">—</div>
-      </div>
-    </section>
-
-    <section class="ledger-panel" id="ledgerPanel">
-      <div class="ledger-head">
-        <h2>日历记账</h2>
-        <span class="meta" id="ledgerMeta">—</span>
-      </div>
-      <div class="ledger-body">
-        <div class="ledger-grid">
-          <div class="ledger-box">
-            <h3>今日变化趋势（15 分钟）</h3>
-            <svg class="ledger-chart" id="ledgerChart" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
-            <div class="ledger-legend">
-              <span><i class="lg-pnl"></i>今日已实现</span>
-              <span><i class="lg-vol"></i>今日成交量</span>
-            </div>
-          </div>
-          <div class="ledger-box">
-            <h3>变更记录</h3>
-            <ul class="changes-list" id="changesList"></ul>
-          </div>
+      <p class="section-title">总览</p>
+      <section class="kpis">
+        <div class="kpi">
+          <label>今天净赚/亏</label>
+          <div id="todayPnl" class="value">-</div>
+          <div id="todaySub" class="sub">账本口径，Asia/Shanghai</div>
         </div>
-        <div class="cal-wrap">
-          <table id="calTable">
-            <thead>
-              <tr>
-                <th>日期</th>
-                <th>今日已实现</th>
-                <th>今日成交量</th>
-                <th>未实现</th>
-                <th>总已实现</th>
-                <th>总成交量</th>
-                <th>权益</th>
-              </tr>
-            </thead>
-            <tbody id="calBody"></tbody>
-          </table>
+        <div class="kpi">
+          <label>今日成交量</label>
+          <div id="todayVol" class="value">-</div>
+          <div class="sub">三所合计</div>
         </div>
-      </div>
-    </section>
+        <div class="kpi">
+          <label>总权益</label>
+          <div id="equity" class="value">-</div>
+          <div id="equitySub" class="sub">Extended / RISEx / Decibel 合计</div>
+        </div>
+        <div class="kpi">
+          <label>当前浮盈浮亏</label>
+          <div id="unrealizedPnl" class="value">-</div>
+          <div class="sub">仓位 mark 口径</div>
+        </div>
+        <div class="kpi">
+          <label>三所网格健康</label>
+          <div id="health" class="value">-</div>
+          <div id="healthSub" class="sub">只统计 Extended / RISEx / Decibel</div>
+        </div>
+      </section>
 
-    <section class="pos-panel" id="posPanel">
-      <div class="pos-head">
-        <h2>当前持仓</h2>
-        <span class="meta" id="posMeta">—</span>
-      </div>
-      <div class="pos-body" id="posBody"></div>
-    </section>
+      <p class="section-title">三所状态与参数</p>
+      <section id="venues" class="venues"></section>
 
-    <p class="section-title">各交易所详情</p>
-    <section class="venues" id="venues"></section>
-  </main>
+      <p class="section-title">当前持仓</p>
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>交易所</th>
+              <th>市场</th>
+              <th>方向</th>
+              <th>数量</th>
+              <th>入场价</th>
+              <th>标记价</th>
+              <th>价值</th>
+              <th>浮盈亏</th>
+            </tr>
+          </thead>
+          <tbody id="positions"></tbody>
+        </table>
+      </div>
+
+      <p class="section-title">每日记录（日历）</p>
+      <div class="meta">今天赚/亏按今日运行内权益变化计算；历史日期按总权益变化计算。手动出入金调整应保存在私有运行数据中，不写入开源源码。</div>
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>今天赚/亏</th>
+              <th>总余额/权益</th>
+              <th>今日成交量</th>
+            </tr>
+          </thead>
+          <tbody id="calendarRows"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
 
   <script>
     const TOKEN_KEY = "grid_overview_token";
-    const VENUES = [
-      { key: "extended", label: "Extended", cls: "ext" },
-      { key: "risex", label: "RISEx", cls: "risex" },
-      { key: "decibel", label: "Decibel", cls: "dec" },
+    const VENUE_LINKS = [
+      { key: "extended", label: "Extended", port: 8081 },
+      { key: "risex", label: "RISEx", port: 8082 },
+      { key: "decibel", label: "Decibel", port: 8083 },
     ];
-    const GRID_KEYS = ["extended", "risex", "decibel"];
-    let venueLinks = VENUES.slice();
     const params = new URLSearchParams(location.search);
     let token = params.get("token") || sessionStorage.getItem(TOKEN_KEY) || "";
     if (params.get("token")) {
       sessionStorage.setItem(TOKEN_KEY, token);
       history.replaceState({}, "", location.pathname);
     }
+    let source = null;
+    let timer = null;
 
-    function usd(n) {
-      const v = Number(n);
-      if (!Number.isFinite(v)) return "—";
-      return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function el(id) { return document.getElementById(id); }
+    function n(v) { const x = Number(v); return Number.isFinite(x) ? x : 0; }
+    function usd(v) { return "$" + n(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function usdShort(v) { return "$" + n(v).toLocaleString("en-US", { maximumFractionDigits: 0 }); }
+    function signed(v) {
+      const x = n(v);
+      const s = x > 0 ? "+" : "";
+      return s + usd(x);
     }
-    function usdShort(n) {
-      const v = Number(n);
-      if (!Number.isFinite(v)) return "—";
-      if (Math.abs(v) >= 1e6) return "$" + (v / 1e6).toFixed(2) + "M";
-      if (Math.abs(v) >= 1e4) return "$" + (v / 1e3).toFixed(1) + "k";
-      return usd(v);
+    function currentPnl(row) {
+      return n(row.todayRealizedPnl) + n(row.unrealizedPnl);
     }
-    function signed(n) {
-      const v = Number(n);
-      if (!Number.isFinite(v)) return "—";
-      const s = v >= 0 ? "+" : "-";
-      return s + usd(Math.abs(v)).slice(1);
+    function signedOrDash(v) {
+      return v === null || v === undefined ? "-" : signed(v);
     }
-    function pnlCls(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n) || Math.abs(n) < 0.005) return "";
-      return n > 0 ? "up" : "down";
+    function clsOrEmpty(v) {
+      return v === null || v === undefined ? "" : cls(v);
     }
-    function gridUrl(v) {
-      var u = v.url || "";
-      if (!u) return "#";
-      return u.replace(/\/?$/, "/");
+    function equityDelta(rows, index) {
+      const row = rows[index];
+      if (!row) return null;
+      const explicit = Number(row.equityChange);
+      const raw = Number.isFinite(explicit)
+        ? explicit
+        : (() => {
+            const prev = rows[index + 1];
+            return prev ? n(row.equity) - n(prev.equity) : null;
+          })();
+      return raw;
     }
-    function syncGridToken() {
-      if (token) localStorage.setItem("grid_auth_token", token);
+    function todayRunDelta(ledger, currentEquity) {
+      const points = ledger && Array.isArray(ledger.intraday) ? ledger.intraday : [];
+      const first = points.find(p => Number.isFinite(Number(p.equity)) && Number(p.equity) > 0);
+      if (!first) return null;
+      return n(currentEquity) - n(first.equity);
     }
+    function calendarPnl(ledger, rows, index) {
+      const row = rows[index];
+      if (!row) return null;
+      if (ledger && row.day === ledger.dayKey) {
+        return todayRunDelta(ledger, row.equity) ?? equityDelta(rows, index);
+      }
+      return equityDelta(rows, index);
+    }
+    function pct(v) { return (n(v) * 100).toFixed(1) + "%"; }
+    function price(v) {
+      const x = n(v);
+      if (Math.abs(x) >= 1000) return x.toFixed(1);
+      if (Math.abs(x) >= 10) return x.toFixed(2);
+      return x.toFixed(4);
+    }
+    function cls(v) { return n(v) > 0 ? "up" : n(v) < 0 ? "down" : ""; }
+    function statusLabel(status) {
+      return status === "ok" ? "正常" : status === "busy" ? "处理中" : status === "down" ? "不可达" : "需处理";
+    }
+    function actionText(action) {
+      return ({ wait: "等待", converge: "补齐/收敛", seed: "铺单", resume: "恢复", restart: "重启" })[action] || action || "-";
+    }
+    function portUrl(port) {
+      return location.protocol + "//" + location.hostname + ":" + port + "/";
+    }
+    function authHeaders() {
+      return token ? { Authorization: "Bearer " + token, "x-grid-token": token } : {};
+    }
+
     function renderNav() {
-      document.getElementById("nav").innerHTML = venueLinks.map(function (v) {
-        var meta = VENUES.find(function (x) { return x.key === v.key; }) || v;
-        return '<a class="' + meta.cls + '" href="' + gridUrl(v) + '" target="_blank" rel="noopener" onclick="syncGridToken()">' + v.label + "</a>";
-      }).join("");
+      el("nav").innerHTML = VENUE_LINKS
+        .map(v => `<a href="${portUrl(v.port)}" target="_blank" rel="noopener">${v.label} :${v.port}</a>`)
+        .join("");
     }
-    fetch("/api/meta").then(function (r) { return r.json(); }).then(function (m) {
-      if (m.venues && m.venues.length) venueLinks = m.venues;
-      renderNav();
-    }).catch(function () { renderNav(); });
 
-    function isGridVenue(v) {
-      return GRID_KEYS.indexOf(v.key) >= 0;
-    }
-    function phaseLabel(phase) {
-      var m = {
-        maintaining: "维护中",
-        seeding: "铺单中",
-        busy: "重配中",
-        recovering: "恢复中",
-        paused: "已暂停",
-        idle: "空闲",
-      };
-      return m[phase] || phase || "—";
-    }
-    function actionLabel(action) {
-      var m = { wait: "正常", seed: "续铺", converge: "收敛", resume: "恢复", restart: "重启" };
-      return m[action] || action || "—";
-    }
-    function healthTone(v) {
-      if (!v.ok || v.stale) return "off";
-      var fh = v.fleetHealth;
-      if (!fh) return v.running ? "busy" : "bad";
-      if (fh.healthy) return "ok";
-      if (fh.restarting || fh.recovering || fh.phase === "busy" || fh.phase === "recovering") return "busy";
-      if (fh.recommendAction && fh.recommendAction !== "wait") return "bad";
-      return "busy";
-    }
-    function formatOpenOrders(v) {
-      var chain = v.accountOpenOrders != null ? v.accountOpenOrders : (v.openOrders ?? 0);
-      var fleet = v.openOrders ?? 0;
-      if (v.key === "risex" && v.accountOpenOrders != null && v.accountOpenOrders !== fleet) {
-        return chain + " 单（链上 · 网格 " + fleet + "）";
+    async function ensureMeta() {
+      const r = await fetch("/api/meta", { cache: "no-store" });
+      const meta = await r.json();
+      if (meta.authRequired && !token) {
+        el("loginGate").style.display = "block";
+        el("app").style.display = "none";
+        return false;
       }
-      return chain + " 单";
-    }
-    function fleetHealthBar(v) {
-      if (!isGridVenue(v) || isTrendVenue(v)) return "";
-      var fh = v.fleetHealth;
-      var tone = healthTone(v);
-      if (!v.ok) return "";
-      var ratio = fh && fh.openOrdersRatio != null ? Math.round(fh.openOrdersRatio * 100) : null;
-      var expected = fh && fh.expectedOrders ? fh.expectedOrders : null;
-      var ordersTxt = expected != null
-        ? formatOpenOrders(v).replace(" 单", "") + " / " + expected + " 目标"
-        : formatOpenOrders(v);
-      var tags = "";
-      if (fh) {
-        tags =
-          '<span class="htag ' + (fh.healthy ? "ok" : tone === "busy" ? "busy" : "bad") + '">' +
-          (fh.healthy ? "HEALTHY" : phaseLabel(fh.phase)) + "</span>" +
-          '<span class="htag neu">' + actionLabel(fh.recommendAction) + "</span>" +
-          (fh.maintainErrorsLastHour ? '<span class="htag bad">错 ' + fh.maintainErrorsLastHour + "/h</span>" : "");
-      } else {
-        tags = '<span class="htag busy">无 health 数据</span>';
-      }
-      var bar = ratio != null
-        ? '<div class="health-progress"><i style="width:' + Math.min(100, ratio) + '%"></i></div>'
-        : "";
-      var err = fh && fh.lastError
-        ? '<div class="health-err">' + fh.lastError + "</div>"
-        : "";
-      return (
-        '<div class="health-bar ' + tone + '">' +
-        '<div class="health-row">' +
-        '<div class="health-tags">' + tags + "</div>" +
-        "<span>" + v.botCount + " bot · " + ordersTxt +
-        (ratio != null ? " · " + ratio + "%" : "") + "</span></div>" +
-        bar + err + "</div>"
-      );
-    }
-    function renderAutoStrip(d) {
-      var strip = document.getElementById("autoStrip");
-      var pills = document.getElementById("autoPills");
-      var summary = document.getElementById("autoSummary");
-      if (!strip || !pills) return;
-      var gc = (d.combined && d.combined.gridCore) || null;
-      var venues = (d.venues || []).filter(function (v) { return GRID_KEYS.indexOf(v.key) >= 0; });
-      if (gc) {
-        strip.className = "auto-strip " + (gc.autoStatus === "ok" ? "ok" : gc.autoStatus === "busy" ? "busy" : "action");
-        summary.textContent = gc.summary;
-      } else {
-        strip.className = "auto-strip busy";
-        summary.textContent = "gridCore 加载中…";
-      }
-      pills.innerHTML = venues.map(function (v) {
-        var tone = healthTone(v);
-        var fh = v.fleetHealth;
-        var meta = !v.ok
-          ? (v.error || "离线")
-          : (fh ? phaseLabel(fh.phase) + " · " + actionLabel(fh.recommendAction) : (v.running ? "运行" : "停"));
-        return (
-          '<div class="auto-pill ' + tone + '">' +
-          '<span class="pill-dot ' + (tone === "ok" ? "ok" : tone) + '"></span>' +
-          '<div><div class="name">' + v.label + "</div>" +
-          '<div class="meta">' + meta + " · " + (v.openOrders ?? 0) + " 单</div></div></div>"
-        );
-      }).join("");
+      el("loginGate").style.display = "none";
+      el("app").style.display = "block";
+      return true;
     }
 
-    function fmtSize(n) {
-      var v = Number(n);
-      if (!Number.isFinite(v)) return "—";
-      if (v >= 1000) return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
-      if (v >= 1) return v.toFixed(4).replace(/\.?0+$/, "");
-      return v.toPrecision(4);
-    }
-    function fmtPrice(n) {
-      var v = Number(n);
-      if (!Number.isFinite(v) || v <= 0) return "—";
-      if (v >= 100) return v.toFixed(2);
-      if (v >= 1) return v.toFixed(4);
-      return v.toPrecision(4);
-    }
-    function sideLabel(side) {
-      return side === "long"
-        ? '<span class="side-long">多</span>'
-        : '<span class="side-short">空</span>';
-    }
-    function venueTag(key, label) {
-      var cls = (VENUES.find(function (x) { return x.key === key; }) || {}).cls || "ext";
-      return '<span class="tag-venue ' + cls + '">' + label + "</span>";
-    }
-
-    function positionTable(positions, showVenue) {
-      if (!positions || !positions.length) {
-        return '<div class="empty">暂无持仓</div>';
-      }
-      var rows = positions.map(function (p) {
-        var venueCell = showVenue
-          ? "<td>" + venueTag(p.venueKey, p.venue || p.venueKey) + "</td>"
-          : "";
-        var lev = p.leverage != null && p.leverage > 0 ? p.leverage + "x" : "—";
-        return (
-          "<tr>" +
-          venueCell +
-          "<td>" + p.market + "</td>" +
-          "<td>" + sideLabel(p.side) + "</td>" +
-          "<td>" + fmtSize(p.size) + "</td>" +
-          "<td>" + fmtPrice(p.entryPrice) + "</td>" +
-          "<td>" + fmtPrice(p.markPrice) + "</td>" +
-          "<td>" + usd(p.valueUsd) + "</td>" +
-          '<td class="' + pnlCls(p.unrealizedPnl) + '">' + signed(p.unrealizedPnl) + "</td>" +
-          "<td>" + lev + "</td>" +
-          "</tr>"
-        );
-      }).join("");
-      var venueHead = showVenue ? "<th>交易所</th>" : "";
-      return (
-        "<table><thead><tr>" +
-        venueHead +
-        "<th>标的</th><th>方向</th><th>数量</th><th>开仓价</th><th>标记价</th><th>名义</th><th>浮盈</th><th>杠杆</th>" +
-        "</tr></thead><tbody>" + rows + "</tbody></table>"
-      );
-    }
-
-    function venuePosMini(positions) {
-      if (!positions || !positions.length) return "";
-      return (
-        '<div class="pos-mini"><label>持仓 ' + positions.length + "</label>" +
-        positionTable(positions, false) +
-        "</div>"
-      );
-    }
-
-    function trendLabel(t) {
-      if (t === "up") return "上升";
-      if (t === "down") return "下降";
-      return "震荡";
-    }
-    function recLabel(r) {
-      if (r === "long") return "做多";
-      if (r === "short") return "做空";
-      return "观望";
-    }
-    function legLabel(l) {
-      if (l === "trend") return "趋势腿";
-      if (l === "scalp") return "Scalp";
-      return "—";
-    }
-    function isTrendVenue(v) {
-      return v.strategy === "trend" || v.strategy === "hybrid";
-    }
-    function venueBadge(v) {
-      if (!v.ok) return '<span class="badge err">离线</span>';
-      if (v.stale) return '<span class="badge stale">缓存</span>';
-      if (isTrendVenue(v)) {
-        if (v.trend && v.trend.paused) return '<span class="badge stop">已暂停</span>';
-        if (v.running) {
-          var mode = v.strategy === "hybrid" ? "混合策略" : "趋势策略";
-          return '<span class="badge run">' + mode + " · " + (v.trend && v.trend.symbol ? v.trend.symbol : "NVDA") + "</span>";
-        }
-        return '<span class="badge stop">未运行</span>';
-      }
-      if (v.fleetHealth) {
-        if (v.fleetHealth.healthy) return '<span class="badge run">正常 · ' + v.botCount + " bot</span>";
-        if (v.fleetHealth.phase === "seeding" || v.fleetHealth.recovering) {
-          return '<span class="badge stale">铺单 ' + Math.round((v.fleetHealth.openOrdersRatio || 0) * 100) + "%</span>";
-        }
-        if (v.fleetHealth.recommendAction && v.fleetHealth.recommendAction !== "wait") {
-          return '<span class="badge err">' + actionLabel(v.fleetHealth.recommendAction) + "</span>";
-        }
-      }
-      if (v.running) return '<span class="badge run">' + v.botCount + " bot 运行中</span>";
-      return '<span class="badge stop">未运行</span>';
-    }
-    function trendPanel(v) {
-      var t = v.trend;
-      if (!t) return '<div class="empty">趋势数据不可用</div>';
-      var trCls = t.trend === "up" ? "up" : t.trend === "down" ? "down" : "neutral";
-      var recCls = t.recommended === "long" ? "up" : t.recommended === "short" ? "down" : "neutral";
-      var mode = v.strategy === "hybrid" ? "混合 TP/SL" : "趋势 TP/SL";
-      var rth = t.rthOpen ? "正盘" : "盘外";
-      var strength = Math.round((t.strength || 0) * 100) + "%";
-      var price = t.price != null ? fmtPrice(t.price) : "—";
-      var tpSl = (t.tpUsd != null || t.slUsd != null)
-        ? "TP " + (t.tpUsd != null ? usd(t.tpUsd) : "—") + " · SL " + (t.slUsd != null ? usd(t.slUsd) : "—")
-        : "无持仓 TP/SL";
-      return (
-        '<div class="trend-box"><h3>' + mode + " · " + t.symbol + "</h3>" +
-        '<div class="trend-pills">' +
-        '<span class="trend-pill ' + trCls + '">' + trendLabel(t.trend) + "</span>" +
-        '<span class="trend-pill ' + recCls + '">' + recLabel(t.recommended) + "</span>" +
-        '<span class="trend-pill mode">' + rth + "</span>" +
-        (t.activeLeg ? '<span class="trend-pill mode">' + legLabel(t.activeLeg) + "</span>" : "") +
-        "</div>" +
-        '<div class="trend-meta">' +
-        "现价 <b>" + price + "</b> · 强度 <b>" + strength + "</b> · 日费 <b>" + usd(t.dailyFeesUsd) + "</b><br>" +
-        tpSl + (t.lastAction ? "<br>最近 · " + t.lastAction : "") +
-        "</div></div>"
-      );
-    }
-    function venueAccounting(v) {
-      return v.accounting || null;
-    }
-    function venueMetrics(v) {
-      var ac = venueAccounting(v);
-      if (isTrendVenue(v)) {
-        var t = v.trend || {};
-        return (
-          '<div class="m"><label>今日已实现</label><span class="' + pnlCls(ac && ac.todayRealizedPnl) + '">' + signed(ac ? ac.todayRealizedPnl : 0) + "</span></div>" +
-          '<div class="m"><label>总已实现</label><span class="' + pnlCls(ac && ac.totalRealizedPnl) + '">' + signed(ac ? ac.totalRealizedPnl : 0) + "</span></div>" +
-          '<div class="m"><label>未实现</label><span class="' + pnlCls(ac ? ac.unrealizedPnl : v.unrealizedPnl) + '">' + signed(ac ? ac.unrealizedPnl : v.unrealizedPnl) + "</span></div>" +
-          '<div class="m"><label>权益</label><span>' + usd(v.equity) + "</span></div>" +
-          '<div class="m"><label>现价</label><span>' + (t.price != null ? fmtPrice(t.price) : "—") + "</span></div>" +
-          '<div class="m"><label>可用</label><span>' + usd(v.balance) + "</span></div>"
-        );
-      }
-      return (
-        '<div class="m"><label>今日已实现</label><span class="' + pnlCls(ac && ac.todayRealizedPnl) + '">' + signed(ac ? ac.todayRealizedPnl : 0) + "</span></div>" +
-        '<div class="m"><label>总已实现</label><span class="' + pnlCls(ac && ac.totalRealizedPnl) + '">' + signed(ac ? ac.totalRealizedPnl : 0) + "</span></div>" +
-        '<div class="m"><label>未实现</label><span class="' + pnlCls(ac ? ac.unrealizedPnl : v.unrealizedPnl) + '">' + signed(ac ? ac.unrealizedPnl : v.unrealizedPnl) + "</span></div>" +
-        '<div class="m"><label>权益</label><span>' + usd(v.equity) + "</span></div>" +
-        '<div class="m"><label>挂单</label><span>' + formatOpenOrders(v) + "</span></div>" +
-        '<div class="m"><label>Bot</label><span>' + v.botCount + " 个</span></div>"
-      );
-    }
-    function venueBodyExtra(v) {
-      if (isTrendVenue(v)) return trendPanel(v);
-      return venuePosMini(v.positions) + botRows(v.bots);
-    }
-
-    function botRows(bots) {
-      if (!bots || !bots.length) return '<div class="empty">无 bot</div>';
-      var rows = bots.map(function (b) {
-        return (
-          "<tr><td>" + b.name + "</td>" +
-          "<td>" + (b.running ? '<span class="up">运行</span>' : "停") + "</td>" +
-          '<td class="' + pnlCls(b.unrealized) + '">' + signed(b.unrealized) + "</td></tr>"
-        );
-      }).join("");
-      return (
-        "<table><thead><tr><th>标的</th><th>状态</th><th>浮盈</th></tr></thead><tbody>" +
-        rows + "</tbody></table>"
-      );
-    }
-
-    function venuePanel(v) {
-      var cls = (VENUES.find(function (x) { return x.key === v.key; }) || {}).cls || "ext";
-      var sub = isTrendVenue(v) ? "趋势" : "";
-      var badge = venueBadge(v);
-
-      if (!v.ok) {
-        return (
-          '<article class="venue ' + cls + '">' +
-          '<div class="venue-head"><div class="venue-name">' + v.label + (sub ? "<small> " + sub + "</small>" : "") + "</div>" + badge +
-          '<a class="venue-open" href="' + gridUrl(v) + '" target="_blank" rel="noopener">打开看板</a></div>' +
-          '<div class="venue-body"><div class="err-txt">' + (v.error || "不可达") + "</div></div></article>"
-        );
-      }
-
-      return (
-        '<article class="venue ' + cls + '">' +
-        '<div class="venue-head"><div class="venue-name">' + v.label + (sub ? "<small> " + sub + "</small>" : "") + "</div>" + badge +
-        '<a class="venue-open" href="' + gridUrl(v) + '" target="_blank" rel="noopener">打开看板 →</a></div>' +
-        '<div class="venue-body">' +
-        fleetHealthBar(v) +
-        '<div class="venue-metrics">' + venueMetrics(v) + "</div>" +
-        venueBodyExtra(v) +
-        "</div></article>"
-      );
-    }
-
-    function renderLedgerChart(intraday, ledger) {
-      var svg = document.getElementById("ledgerChart");
-      if (!svg) return;
-      var pts = Array.isArray(intraday) ? intraday.slice() : [];
-      var lc = ledger && ledger.combined;
-      if (lc && pts.length) {
-        pts[pts.length - 1] = {
-          t: Date.now(),
-          todayRealizedPnl: lc.todayRealizedPnl,
-          todayVolume: lc.todayVolume,
-          equity: lc.equity,
-        };
-      } else if (lc) {
-        pts = [{ t: Date.now(), todayRealizedPnl: lc.todayRealizedPnl, todayVolume: lc.todayVolume, equity: lc.equity }];
-      }
-      if (!pts.length) {
-        svg.innerHTML = '<text x="200" y="60" fill="#8b949e" font-size="12" text-anchor="middle">暂无趋势数据，运行后会每 15 分钟记录</text>';
+    function renderAlert(display) {
+      const box = el("alert");
+      const alerts = display.alerts || [];
+      if (!alerts.length) {
+        box.style.display = "none";
+        box.textContent = "";
         return;
       }
-      var w = 400, h = 120, pad = 28;
-      var pnlVals = pts.map(function (p) { return Number(p.todayRealizedPnl) || 0; });
-      var volVals = pts.map(function (p) { return Number(p.todayVolume) || 0; });
-      function range(vals) {
-        var min = Math.min.apply(null, vals);
-        var max = Math.max.apply(null, vals);
-        if (min === max) { min -= 1; max += 1; }
-        return { min: min, max: max };
-      }
-      var rp = range(pnlVals);
-      var rv = range(volVals);
-      function x(i) { return pad + (pts.length <= 1 ? 0 : i / (pts.length - 1)) * (w - pad * 2); }
-      function yP(v) { return h - pad - ((v - rp.min) / (rp.max - rp.min)) * (h - pad * 2); }
-      function yV(v) { return h - pad - ((v - rv.min) / (rv.max - rv.min)) * (h - pad * 2); }
-      var lineP = pts.map(function (p, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + yP(p.todayRealizedPnl).toFixed(1); }).join(" ");
-      var lineV = pts.map(function (p, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + yV(p.todayVolume).toFixed(1); }).join(" ");
-      var dots = pts.map(function (p, i) {
-        return '<circle class="dot-pnl" cx="' + x(i).toFixed(1) + '" cy="' + yP(p.todayRealizedPnl).toFixed(1) + '" r="2.5"/>';
-      }).join("");
-      svg.innerHTML =
-        '<line class="axis" x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) + '"/>' +
-        '<path class="line-vol" d="' + lineV + '"/>' +
-        '<path class="line-pnl" d="' + lineP + '"/>' + dots;
+      box.style.display = "block";
+      box.textContent = alerts.join("；");
     }
 
-    function renderChanges(changes) {
-      var el = document.getElementById("changesList");
-      if (!el) return;
-      var rows = Array.isArray(changes) ? changes : [];
+    function renderVenue(v) {
+      const ratio = v.expectedOrders > 0 ? v.openOrders / v.expectedOrders : v.openOrdersRatio;
+      const bots = (v.bots || []).map(b => `
+        <div class="bot">
+          <div class="bot-title">
+            <span>${b.name}</span>
+            <span class="${b.outOfRange ? "down" : "up"}">${b.running ? "运行" : "停止"}${b.outOfRange ? " / 出区间" : ""}</span>
+          </div>
+          <div class="bot-grid">
+            <span>价格 <b>${price(b.lastPrice)}</b></span>
+            <span>挂单 <b>${b.openOrders}</b></span>
+            <span>格数 <b>${b.gridCount ?? "-"}</b></span>
+            <span>杠杆 <b>${b.leverage ?? "-"}x</b></span>
+            <span>区间 <b>${price(b.lower)} - ${price(b.upper)}</b></span>
+            <span>跳过带 <b>${b.skipBand ?? "-"}</b></span>
+            <span>自动居中 <b>${b.autoRecenter === null ? "-" : b.autoRecenter ? "开" : "关"}</b></span>
+            <span>浮盈亏 <b class="${cls(b.unrealized)}">${signed(b.unrealized)}</b></span>
+          </div>
+        </div>
+      `).join("");
+
+      return `
+        <article class="card venue">
+          <div class="venue-head">
+            <div>
+              <h2>${v.label}</h2>
+              <div class="meta">:${v.port} · ${v.statusText} · 建议 ${actionText(v.action)}</div>
+            </div>
+            <span class="badge ${v.status}">${statusLabel(v.status)}</span>
+          </div>
+          <div class="venue-body">
+            <div class="metrics">
+              <div class="metric"><label>挂单完整度</label><span>${v.openOrders}/${v.expectedOrders} · ${pct(ratio)}</span></div>
+              <div class="metric"><label>Bot</label><span>${v.botCount} 个</span></div>
+              <div class="metric"><label>当前盈亏状态</label><span class="${cls(currentPnl(v))}">${signed(currentPnl(v))}</span></div>
+              <div class="metric"><label>今日成交量</label><span>${usdShort(v.todayVolume)}</span></div>
+              <div class="metric"><label>当前浮盈亏</label><span class="${cls(v.unrealizedPnl)}">${signed(v.unrealizedPnl)}</span></div>
+              <div class="metric"><label>权益</label><span>${usd(v.equity)}</span></div>
+            </div>
+            <div class="bots">${bots || '<div class="sub">无 bot 数据</div>'}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderPositions(rows) {
+      const body = el("positions");
+      if (!rows || !rows.length) {
+        body.innerHTML = '<tr><td colspan="8" class="meta">当前无持仓</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(p => `
+        <tr>
+          <td>${p.venue}</td>
+          <td>${p.market}</td>
+          <td>${p.side === "short" ? "空" : "多"}</td>
+          <td>${n(p.size).toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}</td>
+          <td>${price(p.entryPrice)}</td>
+          <td>${price(p.markPrice)}</td>
+          <td>${usd(p.valueUsd)}</td>
+          <td class="${cls(p.unrealizedPnl)}">${signed(p.unrealizedPnl)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderCalendar(ledger) {
+      const body = el("calendarRows");
+      const rows = ledger && Array.isArray(ledger.calendar) ? ledger.calendar : [];
       if (!rows.length) {
-        el.innerHTML = '<li>暂无变更 · 基准重置或新交易日会在此记录</li>';
+        body.innerHTML = '<tr><td colspan="4" class="meta">暂无每日记录</td></tr>';
         return;
       }
-      el.innerHTML = rows.map(function (c) {
-        var t = new Date(c.t).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-        return "<li><b>" + t + "</b> · " + c.text + "</li>";
-      }).join("");
+      const dayKey = ledger.dayKey || "";
+      const deltas = rows.map((_, i) => calendarPnl(ledger, rows, i)).filter(v => v !== null && v !== undefined);
+      const totalPnl = deltas.reduce((a, v) => a + n(v), 0);
+      const totalVolume = rows.reduce((a, r) => a + n(r.todayVolume), 0);
+      const currentEquity = rows.length ? n(rows[0].equity) : 0;
+      body.innerHTML = rows.map((r, i) => {
+        const isToday = r.day === dayKey;
+        const pnl = calendarPnl(ledger, rows, i);
+        return `
+          <tr>
+            <td>${r.day}${isToday ? "（今天）" : ""}</td>
+            <td class="${clsOrEmpty(pnl)}">${signedOrDash(pnl)}</td>
+            <td>${usd(r.equity)}</td>
+            <td>${usdShort(r.todayVolume)}</td>
+          </tr>
+        `;
+      }).join("") + `
+        <tr class="total-row">
+          <td>总计</td>
+          <td class="${cls(totalPnl)}">${signed(totalPnl)}</td>
+          <td>${usd(currentEquity)}</td>
+          <td>${usdShort(totalVolume)}</td>
+        </tr>
+      `;
     }
 
-    function renderCalendar(calendar, dayKey) {
-      var body = document.getElementById("calBody");
-      if (!body) return;
-      var rows = Array.isArray(calendar) ? calendar : [];
-      if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="7" class="empty">暂无历史 · 日切后会自动归档</td></tr>';
-        return;
-      }
-      body.innerHTML = rows.map(function (r) {
-        var cls = r.day === dayKey ? ' class="today-row"' : "";
-        return (
-          "<tr" + cls + ">" +
-          "<td>" + r.day + (r.day === dayKey ? " 今" : "") + "</td>" +
-          '<td class="' + pnlCls(r.todayRealizedPnl) + '">' + signed(r.todayRealizedPnl) + "</td>" +
-          "<td>" + usdShort(r.todayVolume) + "</td>" +
-          '<td class="' + pnlCls(r.unrealizedPnl) + '">' + signed(r.unrealizedPnl) + "</td>" +
-          '<td class="' + pnlCls(r.totalRealizedPnl) + '">' + signed(r.totalRealizedPnl) + "</td>" +
-          "<td>" + usdShort(r.totalVolume) + "</td>" +
-          "<td>" + usd(r.equity) + "</td>" +
-          "</tr>"
-        );
-      }).join("");
+    function render(data) {
+      const display = data.display || {};
+      const h = display.headline || {};
+      const gh = display.gridHealth || {};
+      const calendarRows = data.ledger && Array.isArray(data.ledger.calendar) ? data.ledger.calendar : [];
+      const headlinePnl = calendarPnl(data.ledger || {}, calendarRows, 0) ?? 0;
+      el("todayPnl").textContent = signed(headlinePnl);
+      el("todayPnl").className = "value " + cls(headlinePnl);
+      el("todaySub").textContent = (data.ledger && data.ledger.dayKey ? data.ledger.dayKey : "今日") + " · 今日运行内权益变化";
+      el("todayVol").textContent = usdShort(h.todayVolume);
+      el("equity").textContent = usd(h.equity);
+      el("equitySub").textContent = `挂单 ${gh.openOrders ?? 0}/${gh.expectedOrders ?? 0}`;
+      el("unrealizedPnl").textContent = signed(h.unrealizedPnl);
+      el("unrealizedPnl").className = "value " + cls(h.unrealizedPnl);
+      el("health").textContent = `${gh.healthy ?? 0}/${gh.total ?? 3}`;
+      el("health").className = "value " + (gh.needsAction ? "warn" : "up");
+      el("healthSub").textContent = gh.summary || "等待三所状态";
+      renderAlert(display);
+      el("venues").innerHTML = (display.venueCards || []).map(renderVenue).join("");
+      renderPositions(data.allPositions || []);
+      renderCalendar(data.ledger || {});
+      el("time").textContent = "更新 " + new Date(data.updatedAt || Date.now()).toLocaleTimeString("zh-CN");
+      el("dot").className = "dot on";
     }
 
-    function render(d) {
-      var c = d.combined || {};
-      var L = d.ledger || {};
-      var lc = L.combined || {};
-
-      var todayPnl = document.getElementById("kTodayPnl");
-      todayPnl.textContent = signed(lc.todayRealizedPnl ?? c.totalTodayRealizedPnl);
-      todayPnl.className = "val " + pnlCls(lc.todayRealizedPnl ?? c.totalTodayRealizedPnl);
-
-      var totalPnl = document.getElementById("kTotalPnl");
-      totalPnl.textContent = signed(lc.totalRealizedPnl ?? c.totalRealizedPnl);
-      totalPnl.className = "val " + pnlCls(lc.totalRealizedPnl ?? c.totalRealizedPnl);
-
-      document.getElementById("kLedgerDay").textContent =
-        (L.dayKey || "今日") + " · " + (L.timezone || "Asia/Shanghai") + " 日切 · 今日只增不减";
-
-      var ur = document.getElementById("kUr");
-      ur.textContent = signed(lc.unrealizedPnl ?? c.totalUnrealized);
-      ur.className = "val " + pnlCls(lc.unrealizedPnl ?? c.totalUnrealized);
-
-      document.getElementById("kEq").textContent = usd(c.totalEquity);
-      document.getElementById("kStatus").textContent =
-        (c.runningVenues ?? 0) + " 所在运行 · " + (c.totalBots ?? 0) + " bot" +
-        ((c.trendStrategies ?? 0) > 0 ? " · " + c.trendStrategies + " 趋势" : "") +
-        (c.staleVenues ? " · " + c.staleVenues + " 所缓存" : "");
-
-      var gc = c.gridCore || {};
-      var kHealth = document.getElementById("kHealth");
-      var kHealthBox = document.getElementById("kHealthBox");
-      kHealth.textContent = (gc.healthyCount ?? 0) + "/" + (gc.activeVenues ?? 3) + " 健康";
-      kHealth.className = "val " + (gc.autoStatus === "ok" ? "up" : gc.autoStatus === "busy" ? "" : "down");
-      if (kHealthBox) {
-        kHealthBox.className = "kpi " + (gc.autoStatus === "ok" ? "health-ok" : gc.autoStatus === "busy" ? "health-busy" : "health-bad");
-      }
-      document.getElementById("kHealthSub").textContent =
-        "挂单 " + (gc.openOrders ?? 0) + "/" + (gc.expectedOrders ?? "—") +
-        " · " + (gc.autoStatus === "ok" ? "全自动运行" : (gc.summary || "—"));
-
-      renderAutoStrip(d);
-
-      document.getElementById("kTodayVol").textContent = usdShort(lc.todayVolume ?? c.totalTodayVolume);
-      document.getElementById("kVolSub").textContent =
-        "总成交 " + usdShort(lc.totalVolume ?? c.totalVolume) + " · " + (lc.volumeWindow || "四所合计");
-      document.getElementById("kPos").textContent = String(c.positionCount ?? (d.allPositions || []).length);
-      document.getElementById("kPosVal").textContent = "名义 " + usdShort(c.totalPositionValue);
-      document.getElementById("kOrders").textContent = String(c.totalOpenOrders ?? 0);
-      document.getElementById("kOrdersSub").textContent = (d.venues || [])
-        .filter(function (x) { return x.ok; })
-        .map(function (x) { return x.label.replace("网格", "") + " " + (x.openOrders ?? 0); })
-        .join(" · ") || "四所交易所挂单合计";
-
-      document.getElementById("ledgerMeta").textContent =
-        "记账日 " + (L.dayKey || "—") + " · 今日 " + signed(lc.todayRealizedPnl ?? 0) + " · 成交 " + usdShort(lc.todayVolume ?? 0);
-      renderLedgerChart(L.intraday, L);
-      renderChanges(L.changes);
-      renderCalendar(L.calendar, L.dayKey);
-
-      var positions = d.allPositions || [];
-      document.getElementById("posMeta").textContent =
-        positions.length
-          ? positions.length + " 笔 · 名义 " + usd(c.totalPositionValue)
-          : "暂无持仓";
-      document.getElementById("posBody").innerHTML = positionTable(positions, true);
-
-      var bad = (d.venues || []).filter(function (x) { return !x.ok; });
-      var gridWarn = (d.venues || []).filter(function (x) {
-        return isGridVenue(x) && x.ok && x.fleetHealth && !x.fleetHealth.healthy &&
-          x.fleetHealth.recommendAction && x.fleetHealth.recommendAction !== "wait" &&
-          !x.fleetHealth.restarting && !x.fleetHealth.recovering;
-      });
-      var al = document.getElementById("alert");
-      if (bad.length || gridWarn.length) {
-        al.style.display = "block";
-        var parts = bad.map(function (x) { return x.label + " 离线 " + (x.error || ""); });
-        gridWarn.forEach(function (x) {
-          parts.push(x.label + " 待处理 · " + actionLabel(x.fleetHealth.recommendAction));
-        });
-        al.textContent = parts.join(" · ");
-      } else al.style.display = "none";
-
-      document.getElementById("venues").innerHTML = (d.venues || []).map(venuePanel).join("");
-      document.getElementById("time").textContent =
-        "更新 " + new Date(d.updatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      document.getElementById("dot").className = "dot on";
-    }
-
-    async function pull() {
+    async function pollOnce() {
       try {
-        var headers = token ? { Authorization: "Bearer " + token } : {};
-        var r = await fetch("/api/overview", { headers: headers, cache: "no-store" });
-        if (r.status === 401 || r.status === 403) {
+        const r = await fetch("/api/overview", { headers: authHeaders(), cache: "no-store" });
+        if (r.status === 401) {
           sessionStorage.removeItem(TOKEN_KEY);
           token = "";
-          document.getElementById("loginGate").style.display = "flex";
-          document.getElementById("time").textContent = "需要密码";
+          location.reload();
           return;
         }
         if (!r.ok) throw new Error("HTTP " + r.status);
         render(await r.json());
       } catch (e) {
-        document.getElementById("dot").className = "dot off";
-        document.getElementById("time").textContent = "加载失败: " + (e && e.message ? e.message : "未知") + " · 3s 重试";
-        console.error("[overview]", e);
+        el("dot").className = "dot off";
+        el("time").textContent = "读取失败: " + (e && e.message ? e.message : e);
       }
     }
 
-    var liveTimer = null;
-    function startLive() {
-      document.getElementById("loginGate").style.display = "none";
-      pull();
-      if (liveTimer) clearInterval(liveTimer);
-      liveTimer = setInterval(pull, 3000);
+    async function start() {
+      renderNav();
+      const ok = await ensureMeta();
+      if (!ok) return;
+      await pollOnce();
+      clearInterval(timer);
+      timer = setInterval(pollOnce, 3000);
+      if (window.EventSource && token) {
+        if (source) source.close();
+        source = new EventSource("/api/stream?token=" + encodeURIComponent(token));
+        source.onmessage = ev => render(JSON.parse(ev.data));
+        source.onerror = () => { if (source) source.close(); source = null; };
+      }
     }
 
-    document.getElementById("tokenGo").onclick = function () {
-      token = document.getElementById("tokenIn").value.trim();
+    el("tokenGo").onclick = function () {
+      token = el("tokenIn").value.trim();
       if (!token) return;
       sessionStorage.setItem(TOKEN_KEY, token);
-      renderNav();
-      startLive();
+      start();
     };
-    document.getElementById("tokenIn").onkeydown = function (e) {
-      if (e.key === "Enter") document.getElementById("tokenGo").click();
+    el("tokenIn").onkeydown = function (e) {
+      if (e.key === "Enter") el("tokenGo").click();
     };
-
-    fetch("/api/meta", { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .then(function (m) {
-        if (m.authRequired && !token) {
-          document.getElementById("loginGate").style.display = "flex";
-          return;
-        }
-        startLive();
-      })
-      .catch(function () {
-        if (!token) document.getElementById("loginGate").style.display = "flex";
-        else startLive();
-      });
+    start();
   </script>
 </body>
 </html>

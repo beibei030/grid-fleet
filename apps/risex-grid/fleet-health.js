@@ -21,6 +21,15 @@ function expectedOpenOrders(state) {
   return total > 0 ? total : ACTIVE_SLOTS * Math.max(6, Math.floor(gcDefault * 0.85));
 }
 
+function hasOverfilledBot(state) {
+  return (state?.bots || []).some((b) => {
+    if (!b.running) return false;
+    const gc = b.config?.gridCount ?? b.grid?.count ?? gridCountDefault();
+    const oo = b.openOrders ?? b.botOpenOrders ?? 0;
+    return oo > gc + 2;
+  });
+}
+
 export function computeFleetHealth(state) {
   const lock = getFleetLockMeta();
   const diag = getMaintainDiagnostics();
@@ -31,6 +40,7 @@ export function computeFleetHealth(state) {
   const botCount = state?.botCount ?? 0;
   const running = !!state?.running;
   const recovering = isFleetRecovering();
+  const overfilled = hasOverfilledBot(state);
 
   let phase = 'idle';
   if (paused) phase = 'paused';
@@ -43,8 +53,8 @@ export function computeFleetHealth(state) {
   if (paused) recommendAction = 'resume';
   else if (lock.restarting || recovering) recommendAction = 'wait';
   else if (!running || botCount < ACTIVE_SLOTS) recommendAction = 'seed';
-  else if (ratio < 0.5) recommendAction = 'seed';
-  else if (ratio < 0.85) recommendAction = 'converge';
+  else if (ratio < 0.85) recommendAction = 'seed';
+  else if (overfilled) recommendAction = 'converge';
   else if (openOrders === 0 && botCount > 0) recommendAction = 'restart';
 
   const healthy =
@@ -64,6 +74,7 @@ export function computeFleetHealth(state) {
     lastError: diag.lastError,
     maintainErrorsLastHour: diag.errorsLastHour,
     recommendAction,
+    overfilled,
     restarting: lock.restarting,
     restartingSince: lock.restartingSince || null,
     recovering,

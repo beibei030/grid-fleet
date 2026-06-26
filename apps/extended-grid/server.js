@@ -201,13 +201,17 @@ const server = http.createServer(async (req, res) => {
       try {
         const { recoverFleetSeeding } = await import('./fleet-seed.js');
         const converged = [];
+        await exchange._refreshAllOpenOrders?.().catch(() => {});
         for (const b of fleet.bots.values()) {
           if (!b.running) continue;
-          const dist = b.nearestOrderDistancePct?.();
-          if (dist != null && dist > 0.25) {
-            const ok = await b.recenter(b.lastPrice, { force: true }).catch(() => false);
-            if (ok) converged.push(b.config?.displayName || 'bot');
-          }
+          const h = b.checkGridHealth?.();
+          if (!h?.overFilled && !h?.hardOverFilled) continue;
+          const cached = b._liveOpenOrders?.() || [];
+          const r = await b.trimExcessOrders?.(cached, {
+            target: h.softMaxOrders,
+            maxCancel: Number(process.env.EXT_CONVERGE_MAX_CANCEL || process.env.RISE_CONVERGE_MAX_CANCEL || 8),
+          }).catch((e) => ({ error: e.message }));
+          converged.push({ market: b.config?.displayName || 'bot', ...r });
         }
         const seed = await recoverFleetSeeding(fleet, exchange);
         return send(res, 200, { ok: true, converged, ...seed, state: attachFleetHealth(fleet.getState()) });
@@ -275,7 +279,7 @@ server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`\n[启动失败] 端口 ${cfg.port} 已被占用——很可能之前那个程序窗口还在运行。`);
     console.error('请先关闭之前的黑色命令行窗口（或在里面按 Ctrl+C），再启动本程序。');
-    console.error('或在 .env 里改 PORT 使用别的端口。\n');
+    console.error('或在 .env 里改 PORT=8082 用别的端口。\n');
   } else {
     console.error('[服务器错误] ' + (e?.message || e));
   }
@@ -308,7 +312,7 @@ server.listen(cfg.port, async () => {
   console.log(`仪表盘: http://localhost:${cfg.port}`);
   console.log(`行情数据源: 实时 (${exchange.network}) ${exchange.apiUrl || ''}`);
   console.log('⚠️ 实盘模式：将使用真实资金在 Extended 主网下单。');
-  if (cfg.authToken) console.log('🔒 API 已启用 Bearer 认证（GRID_AUTH_TOKEN）。\n');
+  if (cfg.authToken) console.log('🔒 看板/API 已启用密码保护（与对冲 hedge-token 相同）。\n');
   else console.log('');
   if (process.env.FLEET_AUTOSTART === '1') {
     setTimeout(async () => {

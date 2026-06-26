@@ -28,9 +28,12 @@ export interface LedgerDayRow {
   todayRealizedPnl: number;
   todayVolume: number;
   unrealizedPnl: number;
+  unrealizedPnlChange?: number | null;
   totalRealizedPnl: number;
   totalVolume: number;
   equity: number;
+  equityChange?: number | null;
+  equityResidual?: number | null;
 }
 
 export interface LedgerIntradayPoint {
@@ -226,15 +229,15 @@ function rolloverDay(st: PersistedLedger, venues: GridVenueSummary[], remoteStat
   };
   for (const v of venues) {
     if (!v.ok) continue;
+    row.unrealizedPnl += v.unrealizedPnl;
+    row.equity += v.equity;
     const m = extractFromState(remoteStates.get(v.key), st.lastGood?.[v.key]);
     const open = st.venueOpen[v.key];
     if (!m || !open) continue;
     row.todayRealizedPnl += round2(m.realizedPnl - open.realized);
     row.todayVolume += round2(Math.max(0, m.volumeTotal - open.volume));
-    row.unrealizedPnl += m.unrealizedPnl;
     row.totalRealizedPnl += m.realizedPnl;
     row.totalVolume += m.volumeTotal;
-    row.equity += m.equity;
   }
   row.todayRealizedPnl = round2(row.todayRealizedPnl);
   row.todayVolume = round2(row.todayVolume);
@@ -434,6 +437,28 @@ function sumVenueViews(views: Record<string, VenueLedgerView>): VenueLedgerView 
   return acc;
 }
 
+function withCalendarChanges(rows: LedgerDayRow[]): LedgerDayRow[] {
+  return rows.map((row, i) => {
+    const prev = rows[i + 1];
+    if (!prev) {
+      return {
+        ...row,
+        unrealizedPnlChange: null,
+        equityChange: null,
+        equityResidual: null,
+      };
+    }
+    const unrealizedPnlChange = round2(row.unrealizedPnl - prev.unrealizedPnl);
+    const equityChange = round2(row.equity - prev.equity);
+    return {
+      ...row,
+      unrealizedPnlChange,
+      equityChange,
+      equityResidual: round2(equityChange - row.todayRealizedPnl - unrealizedPnlChange),
+    };
+  });
+}
+
 export function updateOverviewLedger(
   venues: GridVenueSummary[],
   remoteStates: Map<string, Record<string, unknown> | null | undefined>
@@ -470,6 +495,8 @@ export function updateOverviewLedger(
   }
 
   const combined = sumVenueViews(views);
+  combined.unrealizedPnl = round2(venues.reduce((a, v) => a + (v.ok ? v.unrealizedPnl : 0), 0));
+  combined.equity = round2(venues.reduce((a, v) => a + (v.ok ? v.equity : 0), 0));
 
   const now = Date.now();
   if (now - st.lastSnapshotAt >= SNAPSHOT_MS) {
@@ -493,7 +520,7 @@ export function updateOverviewLedger(
     equity: combined.equity,
   };
 
-  const calendar = [todayRow, ...st.history.filter((x) => x.day !== key)].slice(0, 14);
+  const calendar = withCalendarChanges([todayRow, ...st.history.filter((x) => x.day !== key)].slice(0, 14));
 
   savePersisted(st);
 

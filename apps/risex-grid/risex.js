@@ -51,13 +51,14 @@ export class RiseExchange extends EventEmitter {
     this.wsUrl = opts.wsUrl;
     this.signerKey = opts.signerKey;
     this.pollMs = opts.pollMs ?? 5000;
-    // 链上写操作有账户级 tx quota；触发 429 时退避。勿并行多脚本 cancel/place 风暴。
-    this.orderGapMs = opts.orderGapMs ?? 11000;
+    // Default to no artificial delay; set RISE_ORDER_GAP_MS if the API starts returning quota errors.
+    this.orderGapMs = Math.max(0, Number(opts.orderGapMs ?? process.env.RISE_ORDER_GAP_MS ?? 0) || 0);
     this._lastPlaceAt = 0;
     this._lastChainAt = 0;
-    /** 全账户链上写操作串行队列（place/cancel/杠杆/平仓 共享 quota） */
+    /** 全账户链上写操作串行队列（place/cancel/杠杆/平仓 共享 10s quota） */
     this._chainQueue = Promise.resolve();
     this._levTarget = new Map();
+    this._levPermitMismatch = new Set();
     this._pollTick = 0;
     this.markets = new Map();
     this.balance = null;
@@ -302,6 +303,11 @@ export class RiseExchange extends EventEmitter {
         } catch (e) {
           lastErr = e;
           const msg = e?.message || '';
+          if (/permit signature mismatch/i.test(msg)) {
+            this._levPermitMismatch.add(mId);
+            console.warn(`[RISEx] m${mId} 杠杆 permit 签名不匹配，跳过自动设杠杆`);
+            return false;
+          }
           const quotaWait = /tx quota exceeded|1 request per 10 seconds/i.test(msg);
           const retry = /NonceUsed|nonce|429|rate.?limit/i.test(msg) && attempt < 5;
           if (!retry) break;
@@ -316,6 +322,7 @@ export class RiseExchange extends EventEmitter {
   /** 持仓杠杆与目标不符时写链上杠杆；大仓不平仓（避免铺单前误平 SOL 等残留） */
   async ensureLeverage(marketId, x) {
     const mId = Number(marketId);
+    if (process.env.RISE_SKIP_LEVERAGE === '1' || this._levPermitMismatch?.has(mId)) return false;
     const target = Math.floor(Number(x));
     await this._refreshAllPositions().catch(() => {});
     const pos = this.getPosition(mId);
@@ -331,7 +338,10 @@ export class RiseExchange extends EventEmitter {
       }
     }
     const ok = await this.setLeverage(mId, target);
-    if (!ok) throw new Error(`RISEx 设置 ${target}x 杠杆失败（请查日志 Nonce/429）`);
+    if (!ok) {
+      if (this._levPermitMismatch?.has(mId)) return false;
+      throw new Error(`RISEx 设置 ${target}x 杠杆失败（请查日志 Nonce/429）`);
+    }
     return true;
   }
 
@@ -425,10 +435,23 @@ export class RiseExchange extends EventEmitter {
   /** 全账户链上挂单（不限于当前 watch 标的） */
   async fetchAllOpenOrders() {
     const rows = await this.info.getOpenOrders(this.account);
-    return (rows || []).map((o) => {
+    const parsed = (rows || []).map((o) => {
       const mId = Number(o.market_id);
       return { ...this._parseOpenOrder(o, mId), raw: o };
     });
+    const byMarket = new Map();
+    for (const o of parsed) {
+      const mId = Number(o.marketId);
+      if (!mId) continue;
+      if (!byMarket.has(mId)) byMarket.set(mId, []);
+      byMarket.get(mId).push(o);
+      this._watch.add(mId);
+    }
+    for (const [mId, list] of byMarket) {
+      this._officialOpenByMarket.set(mId, list);
+    }
+    this._officialOpenUpdatedAt = Date.now();
+    return parsed;
   }
 
   getOpenOrders(marketId) {
@@ -545,6 +568,7 @@ export class RiseExchange extends EventEmitter {
         const row = this._parsePosition(p);
         if (!row) continue;
         parsed.push(row);
+        if (row.marketId) this._watch.add(row.marketId);
         this._pos.set(row.marketId, {
           sizeBase: row.sizeBase,
           entryPrice: row.entryPrice,

@@ -25,6 +25,8 @@ export class GridBot {
     this.outOfRangeSince = null;
     this.stoppedAt = null;
     this.lastRecenterAt = null;
+    this._recenterTimestamps = [];
+    this.maxRecentersPerHour = 6;
     this._recentering = false;
     this._seeding = false;
     this._placing = new Set();
@@ -146,11 +148,131 @@ export class GridBot {
   }
 
   /** 以现价为中心重挂网格（越界时不停止） */
+  isSeeding() {
+    return this._seeding;
+  }
+
+  _gridHealthMinOrders() {
+    return Math.max(6, Math.floor((this.config?.gridCount ?? this.grid?.count ?? 24) * 0.85));
+  }
+
+  _missingSeeds(officialList = [], { force = false } = {}) {
+    if (!force && (!this.running || this.outOfRange || this._recentering)) return [];
+    const px = this.lastPrice ?? this.ex._prices?.get?.(this.config.marketId);
+    if (!(px > 0)) return [];
+    const stepP = Number(this.config.stepPrice) || 0.01;
+    const officialKeys = new Set(
+      (officialList || [])
+        .filter((o) => o?.side && o?.price > 0)
+        .map((o) => this._quoteKey(o.side, o.price, stepP))
+    );
+    const seeds = seedOrders({
+      levels: this.grid.levels,
+      price: px,
+      mode: this.config.mode,
+      spacing: this.grid.spacing,
+      skipBand: this.config.skipBand,
+    });
+    return seeds.filter((s) => {
+      const price = snapPx(s.price, stepP);
+      if (officialKeys.has(this._quoteKey(s.side, price, stepP))) return false;
+      if (s.side === 'buy' && !this._shouldAllowNewBuy()) return false;
+      if (s.side === 'sell' && !this._shouldAllowNewSell()) return false;
+      return true;
+    });
+  }
+
+  _sortMissingForHeal(missing, _officialList, px) {
+    return [...missing].sort((a, b) => Math.abs(a.price - px) - Math.abs(b.price - px));
+  }
+
+  checkGridHealth() {
+    if (!this.running || !this.config) return null;
+    const cached = this._liveOpenOrders();
+    const gridCount = this.config.gridCount ?? this.grid?.count ?? 24;
+    const orderCount = cached.length;
+    return {
+      orderCount,
+      underFilled: orderCount < this._gridHealthMinOrders(),
+      overFilled: orderCount > gridCount + 2,
+      hardOverFilled: orderCount >= gridCount + 4,
+      softMaxOrders: gridCount + 2,
+      hardMaxOrders: gridCount + 4,
+    };
+  }
+
+  async topUpMissingBatch({ maxOrders = 6 } = {}) {
+    if (!this.running || !this.config) return { ok: false, placed: 0, openOrders: 0 };
+    await this.ex._refreshAllOpenOrders?.().catch(() => {});
+    let cached = this._liveOpenOrders();
+    const target = this._gridHealthMinOrders();
+    if (cached.length >= target) return { ok: true, placed: 0, openOrders: cached.length, target };
+
+    const px = this.lastPrice ?? this.ex._prices?.get?.(this.config.marketId);
+    let missing = this._missingSeeds(cached, { force: true });
+    if (px > 0) missing = this._sortMissingForHeal(missing, cached, px);
+
+    let placed = 0;
+    this._seeding = true;
+    try {
+      for (const s of missing) {
+        if (placed >= maxOrders || cached.length + placed >= target) break;
+        const id = await this._place(s);
+        if (id) placed++;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } finally {
+      this._seeding = false;
+    }
+    await this.ex._refreshAllOpenOrders?.().catch(() => {});
+    cached = this._liveOpenOrders();
+    return { ok: true, placed, openOrders: cached.length, target };
+  }
+
+  async trimExcessOrders(officialList = [], { target = null, maxCancel = 8 } = {}) {
+    if (!this.running || !this.config || typeof this.ex.cancelOrder !== 'function') {
+      return { cancelled: 0, openOrders: officialList.length };
+    }
+    await this.ex._refreshAllOpenOrders?.().catch(() => {});
+    let list = officialList.length ? officialList : this._liveOpenOrders();
+    const gridCount = this.config.gridCount ?? this.grid?.count ?? 24;
+    const softTarget = target ?? gridCount + 2;
+    if (list.length <= softTarget) return { cancelled: 0, openOrders: list.length, target: softTarget };
+
+    const px = this.lastPrice ?? this.ex._prices?.get?.(this.config.marketId) ?? 0;
+    const candidates = [...list]
+      .filter((o) => o.orderId)
+      .sort((a, b) => {
+        const reduceRank = Number(!!a.reduceOnly) - Number(!!b.reduceOnly);
+        if (reduceRank !== 0) return reduceRank;
+        return Math.abs((b.price ?? px) - px) - Math.abs((a.price ?? px) - px);
+      });
+
+    let cancelled = 0;
+    for (const o of candidates) {
+      if (list.length - cancelled <= softTarget || cancelled >= maxCancel) break;
+      await this.ex.cancelOrder(this.config.marketId, o.orderId).catch(() => {});
+      this.active.delete(String(o.orderId));
+      cancelled++;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    await this.ex._refreshAllOpenOrders?.().catch(() => {});
+    list = this._liveOpenOrders();
+    return { cancelled, openOrders: list.length, target: softTarget };
+  }
   async recenter(price, { force = false } = {}) {
     if (!this.running || this._recentering) return false;
     const px = Number(price ?? this.lastPrice);
     if (!(px > 0)) return false;
     const now = Date.now();
+    if (force) {
+      this._recenterTimestamps = this._recenterTimestamps.filter((t) => now - t < 3600_000);
+      if (this._recenterTimestamps.length >= this.maxRecentersPerHour) {
+        this._alert('recenter skipped: hourly limit');
+        return false;
+      }
+    }
     if (!force && this.lastRecenterAt && now - this.lastRecenterAt < this.config.recenterCooldownMs) {
       return false;
     }
@@ -170,6 +292,7 @@ export class GridBot {
       this.outOfRange = false;
       this.outOfRangeSince = null;
       this.lastRecenterAt = now;
+      if (force) this._recenterTimestamps.push(now);
       await this._seedAround(px);
       const inv = this._inventorySnapshot();
       this._alert(`↻ 已以 ${round2(px)} 为中心重挂网格（±${(half * 100).toFixed(1)}%），${this.config.lower}~${this.config.upper}，${this._liveOpenOrders().length} 单，${this._coverSummary(inv)}。`);

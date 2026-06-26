@@ -165,6 +165,31 @@ const server = http.createServer(async (req, res) => {
       } catch (e) { return send(res, 400, { error: e.message }); }
     }
 
+    if (p === '/api/fleet/complete-seed' && req.method === 'POST') {
+      try {
+        const results = [];
+        for (const b of fleet.bots.values()) {
+          if (!b.running || typeof b.completeInitialSeed !== 'function') continue;
+          const r = await b.completeInitialSeed({ timeoutMs: 240000 });
+          results.push({ market: b.config?.displayName, ...r });
+        }
+        return send(res, 200, { ok: true, results, state: fleet.getState() });
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+
+    if (p === '/api/fleet/top-up' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const maxOrders = Math.max(1, Math.min(24, Number(body.maxOrders || 8)));
+        const results = [];
+        for (const b of fleet.bots.values()) {
+          if (!b.running || typeof b.topUpMissingBatch !== 'function') continue;
+          results.push({ market: b.config?.displayName, ...(await b.topUpMissingBatch({ maxOrders })) });
+        }
+        return send(res, 200, { ok: true, results, state: fleet.getState() });
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+
     if (p === '/api/fleet/start' && req.method === 'POST') {
       try {
         const { resumeFleet } = await import('./fleet-control.js');
@@ -186,9 +211,19 @@ const server = http.createServer(async (req, res) => {
       try {
         const { recoverFleetSeeding } = await import('./fleet-seed.js');
         const converged = [];
+        const trimmed = [];
         for (const b of fleet.bots.values()) {
           if (!b.running) continue;
-          if (typeof b.isOrdersDetachedFromPrice === 'function' && b.isOrdersDetachedFromPrice()) {
+          const h = b.checkGridHealth?.();
+          if ((h?.overFilled || h?.hardOverFilled) && typeof b.trimExcessOrders === 'function') {
+            const cached = exchange.getCachedOpenOrders?.(b.config.marketId) || [];
+            const r = await b.trimExcessOrders(cached, {
+              target: h.softMaxOrders,
+              maxCancel: Number(process.env.RISE_CONVERGE_MAX_CANCEL || 8),
+            }).catch((e) => ({ error: e.message }));
+            trimmed.push({ market: b.config?.displayName, ...r });
+          }
+          if (h?.detached && b.config?.autoRecenter) {
             const ok = await b.recenter(b.lastPrice, { force: true }).catch(() => false);
             if (ok) converged.push(b.config?.displayName || 'bot');
           }
@@ -196,7 +231,7 @@ const server = http.createServer(async (req, res) => {
         await recoverFleetSeeding(fleet, exchange).catch(() => {});
         const { maintainFleet } = await import('./fleet-maintain.js');
         const r = await maintainFleet(fleet, exchange);
-        return send(res, 200, { ok: true, converged, ...r, state: fleet.getState() });
+        return send(res, 200, { ok: true, converged, trimmed, ...r, state: fleet.getState() });
       } catch (e) { return send(res, 400, { error: e.message }); }
     }
 
@@ -267,7 +302,7 @@ server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`\n[启动失败] 端口 ${cfg.port} 已被占用——很可能之前那个程序窗口还在运行。`);
     console.error('请先关闭之前的黑色命令行窗口（或在里面按 Ctrl+C），再启动本程序。');
-    console.error('或在 .env 里改 PORT 使用别的端口。\n');
+    console.error('或在 .env 里改 PORT=8082 用别的端口。\n');
   } else {
     console.error('[服务器错误] ' + (e?.message || e));
   }
@@ -319,7 +354,7 @@ server.listen(cfg.port, async () => {
   console.log(`仪表盘: http://localhost:${cfg.port}`);
   console.log(`行情数据源: 实时 (RISE mainnet) ${exchange.apiUrl || ''}`);
   console.log('⚠️ 实盘模式：将使用真实资金在 RISEx 主网下单。');
-  if (cfg.authToken) console.log('🔒 API 已启用 Bearer 认证（GRID_AUTH_TOKEN）。\n');
+  if (cfg.authToken) console.log('🔒 看板/API 已启用密码保护（与对冲 hedge-token 相同）。\n');
   else console.log('');
   if (process.env.FLEET_AUTOSTART === '1') {
     setTimeout(async () => {

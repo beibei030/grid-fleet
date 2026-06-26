@@ -1,4 +1,5 @@
 import { maintainFleet } from './fleet-maintain.js';
+import { recoverFleetSeeding } from './fleet-seed.js';
 
 let fleetPaused = false;
 
@@ -17,11 +18,18 @@ export async function pauseFleet(fleet) {
   return { paused: true, ...fleet.getState() };
 }
 
-/** 恢复：解除暂停并尝试补满 3 槽 */
+/** 恢复：解除暂停；欠单则续铺/补槽，否则常规维护 */
 export async function resumeFleet(fleet, exchange) {
   setFleetPaused(false);
+  const running = [...fleet.bots.values()].filter((b) => b.running).length;
+  if (!running) {
+    const { restartFleet } = await import('./fleet-plan.js');
+    const r = await restartFleet(fleet, exchange, { closeFirst: false });
+    return { paused: false, ...r, state: fleet.getState() };
+  }
+  const recover = await recoverFleetSeeding(fleet, exchange).catch((e) => ({ ok: false, error: e.message }));
   await maintainFleet(fleet, exchange).catch(() => {});
-  return { paused: false, ...fleet.getState() };
+  return { paused: false, recover, ...fleet.getState() };
 }
 
 /** 市价平掉账户全部持仓（含残留仓位） */
@@ -42,7 +50,8 @@ export async function closeAllPositions(exchange) {
     } catch (e) {
       closed.push({ market: p.market, ok: false, error: e.message });
     }
-    await new Promise((r) => setTimeout(r, 600));
+    const gap = exchange.orderGapMs ?? 11000;
+    await new Promise((r) => setTimeout(r, gap));
   }
   await exchange._refreshAllPositions?.().catch(() => {});
   return { closed, count: closed.filter((c) => c.ok).length };

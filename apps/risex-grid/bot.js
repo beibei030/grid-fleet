@@ -101,8 +101,7 @@ export class GridBot {
       const fromFetch = (all || []).filter((o) => Number(o.marketId) === market.marketId);
       if (fromFetch.length > cached.length) cached = fromFetch;
     }
-    const minKeep = Math.max(6, Math.floor(this.grid.count * 0.4));
-    if (cached.length >= minKeep) {
+    if (cached.length > 0) {
       this._adoptExistingOrders(cached);
       const missing = this._missingSeeds(cached, { force: true });
       for (const s of missing.slice(0, 2)) {
@@ -111,7 +110,6 @@ export class GridBot {
       }
       this._alert(`承接链上 ${cached.length} 单，跳过 cancelAll，缺口 ${missing.length} 格待续补。`);
     } else {
-      await this.ex.cancelAll(market.marketId).catch(() => {});
       await this._seedAround(this.lastPrice);
     }
     await this._ensureInventorySells();
@@ -197,6 +195,42 @@ export class GridBot {
     return { ok: cached.length >= target * 0.6, openOrders: cached.length, target };
   }
 
+  /** Short, bounded top-up for API/maintainer loops. Never cancel existing orders. */
+  async topUpMissingBatch({ maxOrders = 8 } = {}) {
+    if (!this.running || !this.config) return { ok: false, placed: 0, openOrders: 0 };
+    let cached = this.ex.getCachedOpenOrders?.(this.config.marketId) || [];
+    if (typeof this.ex.fetchAllOpenOrders === 'function') {
+      const all = await this.ex.fetchAllOpenOrders().catch(() => []);
+      const fromFetch = (all || []).filter((o) => Number(o.marketId) === this.config.marketId);
+      if (fromFetch.length >= cached.length) cached = fromFetch;
+    }
+
+    const target = Math.max(8, (this.config.gridCount ?? 22) - 4);
+    let missing = this._missingSeeds(cached, { force: true });
+    const px = this.lastPrice ?? this.ex._prices?.get?.(this.config.marketId);
+    if (px > 0) missing = this._sortMissingForHeal(missing, cached, px);
+
+    let placed = 0;
+    this._seeding = true;
+    try {
+      for (const s of missing.slice(0, maxOrders)) {
+        const id = await this._place(s).catch(() => null);
+        if (id) placed += 1;
+      }
+    } finally {
+      this._seeding = false;
+    }
+
+    const after = this.ex.getCachedOpenOrders?.(this.config.marketId) || [];
+    return {
+      ok: after.length >= target,
+      placed,
+      openOrders: Math.max(after.length, cached.length + placed),
+      target,
+      remaining: Math.max(0, missing.length - placed),
+    };
+  }
+
   /** 以现价为中心重挂网格（越界时不停止） */
   async recenter(price, { force = false } = {}) {
     if (!this.running || this._recentering) return false;
@@ -209,33 +243,22 @@ export class GridBot {
 
     this._recentering = true;
     try {
-      await this.ex.cancelAll(this.config.marketId).catch(() => {});
-      this.active.clear();
+      if (process.env.RISE_RECENTER_CANCEL_ALL === '1') {
+        await this.ex.cancelAll(this.config.marketId).catch(() => {});
+        this.active.clear();
+      }
 
-      const half = this.config.rangeHalfPct;
-      const stepP = Number(this.config.stepPrice) || 0.01;
-      const lower = snapPx(px * (1 - half), stepP);
-      const upper = snapPx(px * (1 + half), stepP);
-      this.config.lower = lower;
-      this.config.upper = upper;
-      this.grid = buildGrid({ lower, upper, gridCount: this.config.gridCount });
-
-      const mid = (lower + upper) / 2;
-      this.risk = {
-        ...this.risk,
-        perRungProfit: round2(this.grid.spacing * this.config.sizeBase),
-        spacingPct: round2((this.grid.spacing / mid) * 100),
-      };
+      const { lower, upper, half } = this._updateGridAround(px);
 
       this.lastPrice = px;
       this.outOfRange = false;
       this.outOfRangeSince = null;
       this.lastRecenterAt = now;
-      await this._seedAround(px);
+      await this.topUpMissingBatch({ maxOrders: Number(process.env.RISE_RECENTER_TOPUP_MAX || 8) });
       await this._ensureInventorySells();
       await this._ensureInventoryBuys();
       this._detachedSince = null;
-      this._alert(`↻ 已以 ${round2(px)} 为中心重挂网格（±${(half * 100).toFixed(1)}%），${this.config.lower}~${this.config.upper}，${this.active.size} 单。`);
+      this._alert(`↻ 已以 ${round2(px)} 为中心软居中（±${(half * 100).toFixed(1)}%），${lower}~${upper}，保留旧单并补缺口。`);
       return true;
     } finally {
       this._recentering = false;
@@ -342,16 +365,73 @@ export class GridBot {
     if (!(px > 0)) return null;
     const cached = this.ex.getCachedOpenOrders?.(this.config.marketId) || [];
     const br = this._bracketState(cached, px);
+    const gridCount = this.config.gridCount ?? 22;
     return {
       ...br,
       orderCount: cached.length,
-      underFilled: cached.length < (this.config.gridCount - 2),
+      underFilled: cached.length < (gridCount - 4),
+      overFilled: cached.length > (gridCount + 2),
+      hardOverFilled: cached.length > (gridCount + 4),
+      softMaxOrders: gridCount + 2,
+      hardMaxOrders: gridCount + 4,
       detachedMs: this._detachedSince ? Date.now() - this._detachedSince : 0,
     };
   }
 
+  /** Trim excess orders only; never closes positions or rebuilds the grid. */
+  async trimExcessOrders(officialList = [], { target = null, maxCancel = 8 } = {}) {
+    if (!this.running || !this.config || typeof this.ex.cancelOrder !== 'function') {
+      return { cancelled: 0, openOrders: officialList.length };
+    }
+    let list = officialList;
+    if (!list.length && typeof this.ex.fetchAllOpenOrders === 'function') {
+      const all = await this.ex.fetchAllOpenOrders().catch(() => []);
+      list = (all || []).filter((o) => Number(o.marketId) === this.config.marketId);
+    }
+    const priced = list.filter((o) => o.orderId && o.price > 0);
+    const softMax = target ?? ((this.config.gridCount ?? 22) + 2);
+    if (priced.length <= softMax) return { cancelled: 0, openOrders: list.length, target: softMax };
+
+    const px = this.lastPrice ?? this.ex._prices?.get?.(this.config.marketId) ?? 0;
+    const victims = [...priced]
+      .sort((a, b) => Math.abs(Number(b.price) - px) - Math.abs(Number(a.price) - px))
+      .slice(0, Math.min(maxCancel, priced.length - softMax));
+
+    let cancelled = 0;
+    for (const o of victims) {
+      const ok = await this.ex.cancelOrder(this.config.marketId, o.orderId, o.restingOrderId)
+        .then(() => true)
+        .catch(() => false);
+      if (ok) {
+        cancelled += 1;
+        this.active.delete(String(o.orderId));
+      }
+    }
+    if (cancelled > 0) {
+      this._alert(`🧹 超单收敛：已撤 ${cancelled} 个最远离现价的多余挂单，目标 <= ${softMax}。`);
+    }
+    return { cancelled, openOrders: Math.max(0, list.length - cancelled), target: softMax };
+  }
+
   _orderKey(side, price, stepP) {
     return `${side}:${snapPx(price, stepP)}`;
+  }
+
+  _updateGridAround(px) {
+    const half = this.config.rangeHalfPct;
+    const stepP = Number(this.config.stepPrice) || 0.01;
+    const lower = snapPx(px * (1 - half), stepP);
+    const upper = snapPx(px * (1 + half), stepP);
+    this.config.lower = lower;
+    this.config.upper = upper;
+    this.grid = buildGrid({ lower, upper, gridCount: this.config.gridCount });
+    const mid = (lower + upper) / 2;
+    this.risk = {
+      ...this.risk,
+      perRungProfit: round2(this.grid.spacing * this.config.sizeBase),
+      spacingPct: round2((this.grid.spacing / mid) * 100),
+    };
+    return { lower, upper, half };
   }
 
   /** 多头过重且保证金不足时，撤最远离现价的一档买单以腾挪卖单保证金 */
@@ -511,7 +591,11 @@ export class GridBot {
     const officialKeys = new Set(
       officialList.filter((o) => o.price > 0).map((o) => this._orderKey(o.side, o.price, stepP)),
     );
-    const occupiedLevels = new Set([...this.active.values()].map((o) => o.levelIndex));
+    const activeKeys = new Set(
+      [...this.active.values()]
+        .filter((o) => o.price > 0)
+        .map((o) => this._orderKey(o.side, o.price, stepP)),
+    );
     const pos = this.ex.getPosition?.(this.config.marketId);
     const { heavyLong, heavyShort } = this._positionFlags(pos);
     const br = this._bracketState(officialList, px);
@@ -525,7 +609,7 @@ export class GridBot {
     return seeds.filter((s) => {
       if (heavyLong && s.side === 'buy' && !s.reduceOnly && br.buysBelow) return false;
       if (heavyShort && s.side === 'sell' && !s.reduceOnly && br.sellsAbove) return false;
-      if (occupiedLevels.has(s.levelIndex)) return false;
+      if (activeKeys.has(this._orderKey(s.side, s.price, stepP))) return false;
       if (officialKeys.has(this._orderKey(s.side, s.price, stepP))) return false;
       return true;
     });

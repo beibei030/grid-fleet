@@ -22,7 +22,7 @@ export const FLEET_DEFAULTS = {
   /** Full grid mode after quota headroom recovery. */
   BUDGET_USE: Number(process.env.RISE_BUDGET_USE || 0.85),
   SKIP_BAND: 0.10,
-  AUTO_RECENTER: true,
+  AUTO_RECENTER: process.env.RISE_AUTO_RECENTER === '1',
   AUTO_STOP_OUT_OF_RANGE: false,
   RECENTER_COOLDOWN_MS: 120 * 60 * 1000,
   RANGE_ATR_MULT: 1.35,
@@ -63,6 +63,10 @@ export const ALLOC = CANDIDATE_NAMES.slice(0, 3).map((name, i) => ({
 
 export const BUDGET_USE = FLEET_DEFAULTS.BUDGET_USE;
 export const SKIP_BAND = FLEET_DEFAULTS.SKIP_BAND;
+
+function budgetUse() {
+  return Number(process.env.RISE_BUDGET_USE || FLEET_DEFAULTS.BUDGET_USE || 0.85);
+}
 
 let fleetRestarting = false;
 let fleetRestartingSince = 0;
@@ -125,7 +129,7 @@ export function buildPlanFromSelection({ balance, markets, sel }) {
   const minSz = m.minOrderSize || step;
 
   const slice = balance * weight;
-  const notional = slice * leverage * BUDGET_USE;
+  const notional = slice * leverage * budgetUse();
   let sizeBase = floorStep(notional / gridCount / price, step);
   if (sizeBase < minSz) sizeBase = minSz;
 
@@ -182,7 +186,7 @@ export function planToBotConfig(plan) {
     leverage: plan.leverage,
     skipBand: plan.skipBand,
     autoStopOutOfRange: plan.autoStopOutOfRange,
-    autoRecenter: plan.autoRecenter,
+    autoRecenter: process.env.RISE_AUTO_RECENTER === '1' || plan.autoRecenter,
     rangeHalfPct: plan.rangeHalfPct,
     recenterCooldownMs: plan.recenterCooldownMs,
   };

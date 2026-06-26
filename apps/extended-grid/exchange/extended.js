@@ -43,6 +43,11 @@ export class ExtendedExchange extends EventEmitter {
     this.equity = null;
     this.unrealisedPnl = null;
     this.availableForTrade = null;
+    this.availableForWithdrawal = null;
+    this.initialMargin = null;
+    this.spotEquity = null;
+    this._balanceRefreshError = null;
+    this._balanceRefreshAt = null;
     this._statsCache = null; // official stats cache
     this.pnlSinceDate = null; // YYYY-MM-DD，官网盈亏只汇总该日及以后（与本轮基准对齐）
     this.statsMarketNames = ['BTC-USD', 'ETH-USD', 'SOL-USD'];
@@ -102,7 +107,24 @@ export class ExtendedExchange extends EventEmitter {
     return { 'X-Api-Key': this.apiKey, 'User-Agent': USER_AGENT, 'Content-Type': 'application/json', Accept: 'application/json' };
   }
 
-  async _req(method, path, body, { full = false } = {}) {
+  async _req(method, path, body, { full = false, _retried = false } = {}) {
+    try {
+      return await this._reqOnce(method, path, body, { full });
+    } catch (e) {
+      const msg = e?.cause?.message || e?.message || String(e);
+      const transient = /fetch failed|ECONNREFUSED|ECONNRESET|ETIMEDOUT|socket hang up/i.test(msg);
+      if (!_retried && transient && process.env.EXTENDED_PROXY?.trim()) {
+        const { disableProxyToDirect } = await import('../proxy.js');
+        if (await disableProxyToDirect()) {
+          console.warn('[代理] 请求失败，已切换直连并重试: ' + path);
+          return this._req(method, path, body, { full, _retried: true });
+        }
+      }
+      throw e;
+    }
+  }
+
+  async _reqOnce(method, path, body, { full = false } = {}) {
     const res = await fetch(this.apiUrl + path, {
       method, headers: this._headers(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -553,19 +575,86 @@ export class ExtendedExchange extends EventEmitter {
     }
   }
 
-  async _refreshAccount() {
-    try {
-      const b = await this._get('/api/v1/user/balance');
-      if (b) {
-        this.balance = Number(b.balance);
-        this.equity = Number(b.equity);
-        this.unrealisedPnl = Number(b.unrealisedPnl ?? b.unrealizedPnl ?? 0);
-        this.availableForTrade = Number(b.availableForTrade ?? b.balance);
+  _num(x) {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** 官网「余额」页与 GET /user/spot/balances 对齐 */
+  _mergeSpotBalances(spotRows) {
+    if (!Array.isArray(spotRows) || !spotRows.length) return null;
+    let wallet = null;
+    let equitySum = 0;
+    let equityAny = false;
+    let withdraw = null;
+    for (const row of spotRows) {
+      const contrib = this._num(row.equityContribution);
+      if (contrib != null) {
+        equitySum += contrib;
+        equityAny = true;
       }
+      const asset = String(row.asset ?? row.collateralName ?? '').toUpperCase();
+      const isCollateral = asset === 'USDC' || asset === 'USD' || asset === 'USDT';
+      if (isCollateral) {
+        wallet = this._num(row.balance) ?? wallet;
+        withdraw = this._num(row.availableToWithdraw) ?? withdraw;
+      }
+    }
+    return {
+      wallet,
+      equity: equityAny ? equitySum : null,
+      availableForWithdrawal: withdraw,
+    };
+  }
+
+  async _refreshAccount() {
+    this._balanceRefreshError = null;
+    try {
+      const accountId = await this._ensureAccountId();
+      const b = await this._get('/api/v1/user/balance');
+
+      let spotMerged = null;
+      try {
+        const qs = accountId != null ? `?accountId=${accountId}` : '';
+        const spotRows = await this._get(`/api/v1/user/spot/balances${qs}`);
+        spotMerged = this._mergeSpotBalances(spotRows);
+      } catch (e) {
+        this._balanceRefreshError = `spot/balances: ${e.message}`;
+      }
+
+      if (b) {
+        this.balance = this._num(b.balance);
+        this.equity = this._num(b.equity);
+        this.unrealisedPnl = this._num(b.unrealisedPnl ?? b.unrealizedPnl) ?? 0;
+        this.availableForTrade = this._num(b.availableForTrade);
+        this.availableForWithdrawal = this._num(b.availableForWithdrawal);
+        this.initialMargin = this._num(b.initialMargin);
+        this.spotEquity = this._num(b.spotEquity);
+      }
+
+      // 与 Extended 文档 + 官网余额页：spot/balances 的 equityContribution 之和、USDC balance 为钱包余额
+      if (spotMerged?.wallet != null) this.balance = spotMerged.wallet;
+      if (spotMerged?.equity != null && this.equity == null) this.equity = spotMerged.equity;
+      if (spotMerged?.availableForWithdrawal != null) {
+        this.availableForWithdrawal = spotMerged.availableForWithdrawal;
+      }
+
+      const apiEq = b ? this._num(b.equity) : null;
+      if (apiEq != null) {
+        if (this.equity == null || apiEq > this.equity) this.equity = apiEq;
+      }
+      if (this.availableForTrade == null && this.balance != null) {
+        this.availableForTrade = this.balance;
+      }
+      this._balanceRefreshAt = Date.now();
     } catch (e) {
-      if (/401/.test(e.message)) throw e;       // bad API key: surface it
-      if (/404/.test(e.message)) this.balance = 0; // balance endpoint 404s when balance is 0
-      /* otherwise keep last known balance */
+      if (/401/.test(e.message)) throw e;
+      if (/404/.test(e.message)) {
+        this.balance = 0;
+        this.equity = 0;
+      } else {
+        this._balanceRefreshError = e.message;
+      }
     }
   }
 

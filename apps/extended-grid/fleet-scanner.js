@@ -1,4 +1,4 @@
-import { analyzeTrend } from './trend.js';
+﻿import { analyzeTrend } from './trend.js';
 import {
   ACTIVE_SLOTS,
   CANDIDATE_NAMES,
@@ -10,7 +10,7 @@ import {
 
 let scoreCache = { ts: 0, rows: [] };
 
-/** 对候选市场打分：震荡优先（保守）或趋势联动（激进） */
+/** å¯¹å€™é€‰å¸‚åœºæ‰“åˆ†ï¼šéœ‡è¡ä¼˜å…ˆï¼ˆä¿å®ˆï¼‰æˆ–è¶‹åŠ¿è”åŠ¨ï¼ˆæ¿€è¿›ï¼‰ */
 export async function scoreCandidates(exchange, { names = CANDIDATE_NAMES, cacheMs } = {}) {
   const ttl = cacheMs ?? FLEET_DEFAULTS.SCORE_CACHE_MS ?? 3_600_000;
   if (scoreCache.rows.length && Date.now() - scoreCache.ts < ttl) return scoreCache.rows;
@@ -39,7 +39,7 @@ export async function scoreCandidates(exchange, { names = CANDIDATE_NAMES, cache
         if (atr >= 0.35 && atr <= 4) score += 28 - Math.abs(atr - 1.25) * 6;
         else score += 8;
       }
-    } catch { /* 用默认分 */ }
+    } catch { /* ç”¨é»˜è®¤åˆ† */ }
 
     const gp = gridParamsForName(name);
     const bonus = FLEET_DEFAULTS.BLUE_CHIP_BONUS ?? 12;
@@ -64,7 +64,7 @@ export async function scoreCandidates(exchange, { names = CANDIDATE_NAMES, cache
 }
 
 /**
- * 选出 ACTIVE_SLOTS 个标的：保留运行中且得分尚可的，空槽从候选池补位
+ * é€‰å‡º ACTIVE_SLOTS ä¸ªæ ‡çš„ï¼šä¿ç•™è¿è¡Œä¸­ä¸”å¾—åˆ†å°šå¯çš„ï¼Œç©ºæ§½ä»Žå€™é€‰æ± è¡¥ä½
  */
 export async function pickActiveSelections(exchange, {
   slotCount = ACTIVE_SLOTS,
@@ -93,7 +93,7 @@ export async function pickActiveSelections(exchange, {
   return picked.slice(0, slotCount);
 }
 
-/** 带保证金校验的选币；固定三标时按 BTC → ETH → SOL 顺序，不按得分轮换 */
+/** å¸¦ä¿è¯é‡‘æ ¡éªŒçš„é€‰å¸ï¼›å›ºå®šä¸‰æ ‡æ—¶æŒ‰ BTC â†’ ETH â†’ SOL é¡ºåºï¼Œä¸æŒ‰å¾—åˆ†è½®æ¢ */
 export async function pickActiveSelectionsValidated(exchange, opts) {
   const names = opts.names ?? CANDIDATE_NAMES;
   const slotCount = opts.slotCount ?? ACTIVE_SLOTS;
@@ -108,7 +108,7 @@ export async function pickActiveSelectionsValidated(exchange, opts) {
   };
 
   const picked = [];
-  const used = new Set(opts.runningMarketIds || []);
+  const used = new Set();
 
   const tryPick = (row, kept) => {
     if (!row || used.has(row.marketId)) return;
@@ -116,7 +116,7 @@ export async function pickActiveSelectionsValidated(exchange, opts) {
       buildPlanFromSelection({ balance, markets, sel: { ...row, weight: 1 / slotCount } });
       picked.push({ ...row, weight: 1 / slotCount, kept });
       used.add(row.marketId);
-    } catch { /* 保证金/最小量不足 */ }
+    } catch { /* ä¿è¯é‡‘/æœ€å°é‡ä¸è¶³ */ }
   };
 
   for (const id of opts.runningMarketIds || []) {

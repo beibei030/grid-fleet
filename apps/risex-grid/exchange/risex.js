@@ -51,11 +51,11 @@ export class RiseExchange extends EventEmitter {
     this.wsUrl = opts.wsUrl;
     this.signerKey = opts.signerKey;
     this.pollMs = opts.pollMs ?? 5000;
-    // 链上写操作有账户级 tx quota；触发 429 时退避。勿并行多脚本 cancel/place 风暴。
-    this.orderGapMs = opts.orderGapMs ?? 11000;
+    // Default to no artificial delay; set RISE_ORDER_GAP_MS if the API starts returning quota errors.
+    this.orderGapMs = Math.max(0, Number(opts.orderGapMs ?? process.env.RISE_ORDER_GAP_MS ?? 0) || 0);
     this._lastPlaceAt = 0;
     this._lastChainAt = 0;
-    /** 全账户链上写操作串行队列（place/cancel/杠杆/平仓 共享 quota） */
+    /** 全账户链上写操作串行队列（place/cancel/杠杆/平仓 共享 10s quota） */
     this._chainQueue = Promise.resolve();
     this._levTarget = new Map();
     this._levPermitMismatch = new Set();

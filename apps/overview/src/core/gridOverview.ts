@@ -21,7 +21,7 @@ export interface GridPositionRow {
 export interface GridVenueSummary {
   key: "extended" | "risex" | "decibel" | "ondo";
   label: string;
-  url: string;
+  port: number;
   ok: boolean;
   stale?: boolean;
   staleAt?: number;
@@ -53,12 +53,23 @@ export interface GridVenueSummary {
   returnPct: number;
   bots: Array<{
     name: string;
+    symbol?: string;
     running: boolean;
     gridProfit: number;
     unrealized: number;
+    lastPrice: number;
+    outOfRange: boolean;
+    openOrders: number;
+    gridCount: number | null;
+    leverage: number | null;
+    lower: number | null;
+    upper: number | null;
+    rangeHalfPct: number | null;
+    skipBand: number | null;
+    autoRecenter: boolean | null;
   }>;
   positions: GridPositionRow[];
-  /** grid=网格 bot；trend/hybrid=趋势策略 */
+  /** grid=网格 bot；trend/hybrid=Ondo 趋势策略（:8084） */
   strategy?: "grid" | "trend" | "hybrid";
   fleetHealth?: {
     healthy: boolean;
@@ -106,7 +117,7 @@ export interface GridOverviewCombined {
   totalPositionValue: number;
   /** 四所交易所挂单合计 */
   totalOpenOrders: number;
-  /** 三所网格专用汇总（看板顶栏） */
+  /** 8081–8083 三所网格专用汇总（看板顶栏） */
   gridCore: {
     healthyCount: number;
     activeVenues: number;
@@ -117,6 +128,53 @@ export interface GridOverviewCombined {
     autoStatus: "ok" | "busy" | "needs_action";
     summary: string;
   };
+}
+
+export interface GridOverviewDisplay {
+  headline: {
+    todayRealizedPnl: number;
+    todayVolume: number;
+    totalRealizedPnl: number;
+    unrealizedPnl: number;
+    balance: number;
+    equity: number;
+    updatedAt: number;
+  };
+  gridHealth: {
+    running: number;
+    total: number;
+    healthy: number;
+    openOrders: number;
+    expectedOrders: number;
+    summary: string;
+    needsAction: boolean;
+  };
+  venueCards: Array<{
+    key: GridVenueSummary["key"];
+    label: string;
+    port: number;
+    ok: boolean;
+    running: boolean;
+    status: "ok" | "busy" | "needs_action" | "down";
+    statusText: string;
+    action: string;
+    openOrders: number;
+    expectedOrders: number;
+    openOrdersRatio: number;
+    botCount: number;
+    balance: number;
+    equity: number;
+    todayRealizedPnl: number;
+    todayVolume: number;
+    totalRealizedPnl: number;
+    unrealizedPnl: number;
+    gridProfit: number;
+    volume: number;
+    feesPaid: number | null;
+    bots: GridVenueSummary["bots"];
+    error?: string;
+  }>;
+  alerts: string[];
 }
 
 const GRID_CORE_KEYS: GridVenueSummary["key"][] = ["extended", "risex", "decibel"];
@@ -171,7 +229,8 @@ export interface GridOverviewPayload {
   combined: GridOverviewCombined;
   ledger: OverviewLedger;
   venues: GridVenueSummary[];
-  allPositions: Array<GridPositionRow & { venue: string; venueKey: GridVenueSummary["key"]; url: string }>;
+  allPositions: Array<GridPositionRow & { venue: string; venueKey: GridVenueSummary["key"]; port: number }>;
+  display: GridOverviewDisplay;
 }
 
 interface RemoteGridResult {
@@ -242,15 +301,37 @@ async function fetchRemoteGridState(url: string, token: string, portLabel: strin
 
 function summarizeBots(st: Record<string, unknown> | null | undefined) {
   const bots = Array.isArray(st?.bots) ? st.bots : [];
-  return bots.slice(0, 4).map((b) => {
+  return bots.slice(0, 8).map((b) => {
     const raw = b as Record<string, unknown>;
-    const cfg = raw.config as { displayName?: string } | null | undefined;
+    const cfg = raw.config as {
+      displayName?: string;
+      symbol?: string;
+      gridCount?: number;
+      leverage?: number;
+      lower?: number;
+      upper?: number;
+      rangeHalfPct?: number;
+      skipBand?: number;
+      autoRecenter?: boolean;
+    } | null | undefined;
     const stats = raw.stats as { gridProfit?: number } | undefined;
+    const grid = raw.grid as { count?: number } | null | undefined;
     return {
-      name: cfg?.displayName ?? "—",
+      name: cfg?.displayName ?? cfg?.symbol ?? "—",
+      symbol: cfg?.symbol,
       running: !!raw.running,
       gridProfit: num(stats?.gridProfit),
       unrealized: num(raw.unrealizedPnl),
+      lastPrice: num(raw.lastPrice),
+      outOfRange: !!raw.outOfRange,
+      openOrders: num(raw.openOrders),
+      gridCount: numOrNull(cfg?.gridCount) ?? numOrNull(grid?.count),
+      leverage: numOrNull(cfg?.leverage),
+      lower: numOrNull(cfg?.lower),
+      upper: numOrNull(cfg?.upper),
+      rangeHalfPct: numOrNull(cfg?.rangeHalfPct),
+      skipBand: numOrNull(cfg?.skipBand),
+      autoRecenter: typeof cfg?.autoRecenter === "boolean" ? cfg.autoRecenter : null,
     };
   });
 }
@@ -362,7 +443,7 @@ function summarizeTrend(st: Record<string, unknown>): GridVenueSummary["trend"] 
 function summarizeVenue(
   key: GridVenueSummary["key"],
   label: string,
-  url: string,
+  port: number,
   remote: RemoteGridResult
 ): GridVenueSummary {
   const st = remote.ok ? remote.state : null;
@@ -381,7 +462,7 @@ function summarizeVenue(
   return {
     key,
     label,
-    url,
+    port,
     ok: remote.ok,
     unreachable: remote.unreachable,
     error: remote.error,
@@ -413,6 +494,105 @@ function summarizeVenue(
   };
 }
 
+function venueStatus(v: GridVenueSummary): GridOverviewDisplay["venueCards"][number]["status"] {
+  if (!v.ok || v.stale) return "down";
+  const fh = v.fleetHealth;
+  if (!fh) return v.running ? "busy" : "needs_action";
+  if (fh.restarting || fh.recovering || fh.phase === "busy") return "busy";
+  if (fh.healthy) return "ok";
+  return fh.recommendAction && fh.recommendAction !== "wait" ? "needs_action" : "busy";
+}
+
+function venueStatusText(v: GridVenueSummary): string {
+  if (!v.ok) return `不可达${v.error ? `: ${v.error}` : ""}`;
+  if (v.stale) return "使用缓存数据";
+  const fh = v.fleetHealth;
+  if (!v.running) return "未运行";
+  if (!fh) return "运行中";
+  if (fh.restarting) return "重启中";
+  if (fh.recovering) return "恢复中";
+  if (fh.healthy) return "正常维护";
+  if (fh.phase === "seeding") return "挂单不足";
+  if (fh.phase === "paused") return "已暂停";
+  return String(fh.phase || "运行中");
+}
+
+function buildDisplay(
+  venues: GridVenueSummary[],
+  ledger: OverviewLedger,
+  combined: GridOverviewCombined,
+  updatedAt: number
+): GridOverviewDisplay {
+  const cards = venues.map((v) => {
+    const expectedOrders = expectedOrdersForVenue(v);
+    const ratio = v.fleetHealth?.openOrdersRatio ?? (expectedOrders > 0 ? Math.min(1, v.openOrders / expectedOrders) : 0);
+    const ac = v.accounting;
+    const status = venueStatus(v);
+    return {
+      key: v.key,
+      label: v.label,
+      port: v.port,
+      ok: v.ok,
+      running: v.running,
+      status,
+      statusText: venueStatusText(v),
+      action: v.fleetHealth?.recommendAction ?? (v.running ? "wait" : "seed"),
+      openOrders: v.openOrders,
+      expectedOrders,
+      openOrdersRatio: Math.round(ratio * 1000) / 1000,
+      botCount: v.botCount,
+      balance: v.balance,
+      equity: v.equity,
+      todayRealizedPnl: ac?.todayRealizedPnl ?? 0,
+      todayVolume: ac?.todayVolume ?? v.todayVolume,
+      totalRealizedPnl: ac?.totalRealizedPnl ?? v.realizedPnl,
+      unrealizedPnl: ac?.unrealizedPnl ?? v.unrealizedPnl,
+      gridProfit: v.gridProfit,
+      volume: ac?.totalVolume ?? v.volume,
+      feesPaid: v.feesPaid,
+      bots: v.bots,
+      error: v.error,
+    };
+  });
+
+  const alerts = cards
+    .filter((v) => v.status === "needs_action" || v.status === "down")
+    .map((v) => `${v.label}: ${v.statusText}，挂单 ${v.openOrders}/${v.expectedOrders}，建议 ${v.action}`);
+
+  const total = cards.length;
+  const running = cards.filter((v) => v.ok && v.running).length;
+  const healthy = cards.filter((v) => v.status === "ok").length;
+  const openOrders = cards.reduce((a, v) => a + v.openOrders, 0);
+  const expectedOrders = cards.reduce((a, v) => a + v.expectedOrders, 0);
+  const needsAction = alerts.length > 0;
+  const summary = needsAction
+    ? `三所 ${running}/${total} 运行，${healthy}/${total} 正常；${alerts.join("；")}`
+    : `三所 ${running}/${total} 运行，${healthy}/${total} 正常，挂单 ${openOrders}/${expectedOrders}`;
+
+  return {
+    headline: {
+      todayRealizedPnl: ledger.combined.todayRealizedPnl,
+      todayVolume: ledger.combined.todayVolume,
+      totalRealizedPnl: ledger.combined.totalRealizedPnl,
+      unrealizedPnl: ledger.combined.unrealizedPnl,
+      balance: cards.reduce((a, v) => a + v.balance, 0),
+      equity: combined.totalEquity,
+      updatedAt,
+    },
+    gridHealth: {
+      running,
+      total,
+      healthy,
+      openOrders,
+      expectedOrders,
+      summary,
+      needsAction,
+    },
+    venueCards: cards,
+    alerts,
+  };
+}
+
 function withVenueCache(key: string, summary: GridVenueSummary, remoteOk: boolean): GridVenueSummary {
   if (remoteOk) {
     venueCache.set(key, { summary: { ...summary, stale: false, staleAt: undefined }, at: Date.now() });
@@ -434,31 +614,34 @@ export async function buildGridOverview(): Promise<GridOverviewPayload> {
     {
       key: "extended" as const,
       label: "Extended",
+      port: 8081,
       url: config.gridFleet.url,
       token: config.gridFleet.token,
     },
     {
       key: "risex" as const,
       label: "RISEx",
+      port: 8082,
       url: config.risexGridFleet.url,
       token: config.risexGridFleet.token,
     },
     {
       key: "decibel" as const,
       label: "Decibel",
+      port: 8083,
       url: config.decGridFleet.url,
       token: config.decGridFleet.token,
     },
   ];
 
   const results = await Promise.all(
-    sources.map((s) => fetchRemoteGridState(s.url, s.token, s.label))
+    sources.map((s) => fetchRemoteGridState(s.url, s.token, `:${s.port}`))
   );
 
   const remoteStates = new Map<string, Record<string, unknown> | null | undefined>();
   const venues = sources.map((s, i) => {
     remoteStates.set(s.key, results[i]!.ok ? results[i]!.state : null);
-    const raw = summarizeVenue(s.key, s.label, s.url, results[i]!);
+    const raw = summarizeVenue(s.key, s.label, s.port, results[i]!);
     return withVenueCache(s.key, raw, results[i]!.ok);
   });
 
@@ -479,7 +662,7 @@ export async function buildGridOverview(): Promise<GridOverviewPayload> {
       ...p,
       venue: v.label,
       venueKey: v.key,
-      url: v.url,
+      port: v.port,
     }))
   );
 
@@ -503,11 +686,15 @@ export async function buildGridOverview(): Promise<GridOverviewPayload> {
     gridCore: buildGridCore(venues),
   };
 
+  const updatedAt = Date.now();
+  const display = buildDisplay(venues, ledger, combined, updatedAt);
+
   return {
-    updatedAt: Date.now(),
+    updatedAt,
     combined,
     ledger,
     venues,
     allPositions,
+    display,
   };
 }

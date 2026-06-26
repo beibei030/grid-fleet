@@ -1,5 +1,5 @@
 /**
- * 三所网格总看板，聚合各 grid 进程只读状态，移动端优先。
+ * 三所网格总看板（:8088），聚合 8081/8082/8083 只读状态，移动端优先。
  */
 import cors from "cors";
 import dotenv from "dotenv";
@@ -8,22 +8,18 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { config } from "./config.js";
-import { buildGridOverview } from "./core/gridOverview.js";
-import { startOverviewTelegramScheduler } from "./core/overviewTelegram.js";
-import { gridAuthMiddleware } from "./grid/attachGridUi.js";
-import { log, muteTelegram } from "./util/logger.js";
-import { acquireSingleInstance } from "./util/singleInstance.js";
+import { config } from "../config.js";
+import { buildGridOverview } from "../core/gridOverview.js";
+import { startOverviewTelegramScheduler } from "../core/overviewTelegram.js";
+import { gridAuthMiddleware } from "./attachGridUi.js";
+import { log, muteTelegram } from "../util/logger.js";
+import { acquireSingleInstance } from "../util/singleInstance.js";
 
 dotenv.config();
 
-const port = Number(process.env.OVERVIEW_PORT || process.env.PORT || 0);
-if (!port) {
-  console.error("请在 .env 设置 OVERVIEW_PORT");
-  process.exit(1);
-}
+const port = Number(process.env.OVERVIEW_PORT || process.env.PORT || 8088);
 const authToken = process.env.GRID_AUTH_TOKEN || config.authToken;
-const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../overview-public");
 
 function renderOverviewHtml(): string {
   const htmlPath = path.join(PUBLIC_DIR, "index.html");
@@ -62,9 +58,9 @@ async function main() {
       authRequired: !!authToken,
       port,
       venues: [
-        { key: "extended", label: "Extended", url: config.gridFleet.url },
-        { key: "risex", label: "RISEx", url: config.risexGridFleet.url },
-        { key: "decibel", label: "Decibel", url: config.decGridFleet.url },
+        { key: "extended", label: "Extended", port: 8081, url: config.gridFleet.url },
+        { key: "risex", label: "RISEx", port: 8082, url: config.risexGridFleet.url },
+        { key: "decibel", label: "Decibel", port: 8083, url: config.decGridFleet.url },
       ],
     });
   });
@@ -121,7 +117,7 @@ async function main() {
   });
 
   server.listen(port, () => {
-    log.info(`网格总看板 | http://0.0.0.0:${port} | 聚合 Extended / RISEx / Decibel`);
+    log.info(`网格总看板 | http://0.0.0.0:${port} | 聚合 8081/8082/8083`);
     startOverviewTelegramScheduler(buildGridOverview);
   });
 }
